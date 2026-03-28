@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+.ipython/
+.pytest_cache/
+.vscode/
+.idea/
+*.log
+image.png
