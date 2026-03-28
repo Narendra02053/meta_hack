@@ -13,6 +13,12 @@ from server.grader import calculate_score
 app = FastAPI()
 
 
+@app.get("/")
+def health_check():
+    return {"status": "ok", "message": "Warehouse Priority Env API is running"}
+
+
+
 # -----------------------------
 # TASKS ENDPOINT
 # -----------------------------
