@@ -3,3 +3,4 @@ uvicorn
 pyyaml
 gymnasium
 openenv
+requests
