@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "warehouse_priority_env"
 version = "1.0.0"
 description = "A real-world warehouse simulation environment for OpenEnv hackathons."
+readme = "README.md"
+requires-python = ">=3.11"
 authors = [
     { name = "Narendra", email = "nn7116580@gmail.com" }
 ]
