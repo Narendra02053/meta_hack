@@ -1,74 +1,152 @@
 # 📦 Warehouse Priority Environment
 
-A professional real-world warehouse simulation environment designed for building and testing agentic AI models. The environment simulates a fast-paced logistics hub where agents must manage inventory, process customer orders, handle returns, and meet strict delivery deadlines through dynamic priority escalation.
+A real-world inspired warehouse simulation environment built using **OpenEnv** standards. 
 
-## 🚀 Overview
+This project models realistic logistics workflows such as inventory tracking, order processing, return handling, and deadline-based delivery prioritization. The environment is designed to simulate complex warehouse operations where intelligent agents must make efficient decisions under time constraints.
 
-The **Warehouse Priority Env** challenges agents to optimize warehouse operations. It includes comprehensive features such as:
-- **Dynamic Inventory Management**: Keep track of product levels and restock failed returns.
-- **Order Picking & Packing**: Accurate picking and packing of multi-item customer orders.
-- **Deadline-Based Shipping**: Priority-based rewards for meeting delivery windows.
-- **Priority Escalation**: Automatic triggers for "Urgent" status when deadlines are short (≤ 3 seconds).
-- **Return Processing**: Inspect and restock returned items into the inventory.
+---
+
+## 🚀 Project Overview
+
+Modern warehouses process thousands of orders daily. Managing inventory, shipping deadlines, and return workflows requires optimized decision-making systems. The **Warehouse Priority Environment** simulates these real-world logistics operations in a structured environment, allowing agents to:
+
+- ✅ **Manage dynamic inventory levels**
+- ✅ **Process customer orders**
+- ✅ **Handle return workflows**
+- ✅ **Meet strict shipping deadlines**
+- ✅ **Handle priority escalation logic**
+- ✅ **Optimize operational efficiency**
+
+This environment helps test intelligent decision-making models in logistics and supply chain domains.
+
+---
+
+## 🧠 Core Features
+
+### 📦 Inventory Management
+Tracks multiple product types and dynamically updates stock levels based on actions.
+
+### 📬 Order Processing
+Agents must pick correct items, pack them, and ship orders sequentially.
+
+### ⏱️ Deadline-Based Processing
+Orders include delivery deadlines that impact reward calculations.
+
+### 🔥 Priority Escalation
+Orders automatically escalate to **Urgent** priority when deadlines become critical (≤ 3 seconds).
+
+### 🔄 Returns Handling
+Returned items must be inspected and restocked before they can be reused.
+
+### 🎯 Multi-Difficulty Tasks
+Supports three difficulty levels:
+- **Easy** → Low order volume
+- **Medium** → Moderate complexity
+- **Hard** → High order volume with strict deadlines
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Core**: Python 3.11
-- **API Framework**: FastAPI & Uvicorn
-- **Observation Space**: Discrete status metrics (Inventory, Deadlines, Order Queues)
-- **Deployment**: Dockerized for Hugging Face Spaces
+- **Programming Language**: Python 3.11
+- **API Framework**: FastAPI
+- **Server**: Uvicorn
+- **Environment Standard**: OpenEnv
+- **Containerization**: Docker
+- **Deployment Platform**: Hugging Face Spaces
 
 ---
 
-## 🚦 API Reference
+## 🧱 Project Structure
 
-The environment is served as a REST API. All endpoints are compatible with the **OpenEnv** standard.
+```text
+meta_hack/
+│
+├── server/
+│   ├── app.py              # FastAPI endpoints (Standardized)
+│   ├── environment.py      # Core warehouse logic
+│   ├── grader.py           # Performance evaluation logic
+│   ├── model.py            # Agent behavior logic
+│   ├── tasks.py            # Task difficulty definitions
+│
+├── openenv.yaml            # REQUIRED: Root configuration file
+├── configs/
+│   └── openenv.yml         # Backup configuration
+│
+├── client/
+│   └── run_agent.py        # Sample agent interaction
+│
+├── inference.py            # Required OpenEnv test script
+├── test_env.py             # Local testing script
+├── Dockerfile              # Container setup
+├── requirements.txt        # Python dependencies
+└── README.md               # Project documentation
+```
 
-### 1. Reset Environment
+---
+
+## 🚦 API Endpoints
+
+This environment exposes REST API endpoints compatible with OpenEnv specifications.
+
+### 1️⃣ Reset Environment
 `GET/POST /reset`
-Resets the simulation to the initial state.
-- **Parameters**: `difficulty` (string: `easy`, `medium`, `hard`) - *Default: easy*
-- **Response**: `{ "state": { ... } }`
+Resets the environment to its initial state.
 
-### 2. Take a Step
-`POST /step`
-Executes an action in the environment.
-- **Body**: `{ "action": "action_name" }`
-- **Actions**:
-    - `pick_<product>`: Pick a product for the current order.
-    - `pack_order`: Finalize the current items into a package.
-    - `ship_order`: Ship the packet and advance to the next order.
-    - `inspect_return`: Move an item from returns to inspection.
-    - `restock_<product>`: Move an inspected item back to inventory.
-    - `wait`: Skip a time cycle.
-- **Response**: `{ "state": { ... }, "reward": float, "done": boolean, "info": { ... } }`
-
-### 3. Get Current State
-`GET /state`
-Returns the full current state without advancing time.
+**Optional Input (JSON):**
+```json
+{
+  "difficulty": "easy"
+}
+```
+*Available levels: `easy`, `medium`, `hard`*
 
 ---
 
-## 💻 Local Setup & Usage
+### 2️⃣ Execute Action
+`POST /step`
+Executes an action inside the environment.
 
-### 1. Installation
-Clone the repository and install dependencies:
+**Request (JSON):**
+```json
+{
+  "action": "pick_product"
+}
+```
+**Supported Actions:**
+`pick_product`, `pack_order`, `ship_order`, `inspect_return`, `restock_product`, `wait`
+
+---
+
+### 3️⃣ Get Current State
+`GET /state`
+Returns the current environment state without advancing time.
+
+---
+
+## 💻 Local Setup Instructions
+
+### Step 1 — Create Virtual Environment
 ```bash
 python -m venv venv
+```
+**Activate (Windows):**
+```bash
 .\venv\Scripts\activate
+```
+
+### Step 2 — Install Dependencies
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Running the Server
-Start the environment API locally on port 7860:
+### Step 3 — Run Server
 ```bash
 uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
+*Server will run at: `http://localhost:7860`*
 
-### 3. Running Inference
-Test the environment using the provided inference script:
+### Step 4 — Run Inference Test
 ```bash
 python inference.py
 ```
@@ -76,21 +154,42 @@ python inference.py
 ---
 
 ## 🐳 Docker Deployment
+The environment is fully containerized.
 
-The environment is fully dockerized. To build and run manually:
+**Build Docker Image:**
 ```bash
 docker build -t warehouse-env .
+```
+
+**Run Docker Container:**
+```bash
 docker run -p 7860:7860 warehouse-env
 ```
 
-## 🏆 OpenEnv Validation
+---
 
-This repository is compliant with the **OpenEnv** specification.
-- **Config File**: `openenv.yaml`
-- **Entrypoint**: `server.environment:WarehouseEnv`
-- **Tasks**: Easy, Medium, and Hard variations available.
+## ☁️ Hugging Face Deployment
+This project is deployed using **Hugging Face Spaces**.
+
+**Public Space URL:**
+[https://huggingface.co/spaces/kottakur/warehouse-priority-env](https://huggingface.co/spaces/kottakur/warehouse-priority-env)
 
 ---
 
-## 📧 Contact & Support
-For help or collaboration, please reach out via GitHub or context-specific hackathon support channels.
+## 🧪 OpenEnv Compliance
+- **Configuration File**: `openenv.yaml` (at repo root)
+- **Entrypoint**: `server.environment:WarehouseEnv`
+- **Supported Tasks**: `easy`, `medium`, `hard`
+
+---
+
+## 👤 Author
+**Narendra**
+
+- **GitHub Repository**: [https://github.com/Narendra02053/meta_hack](https://github.com/Narendra02053/meta_hack)
+- **Hugging Face Space**: [https://huggingface.co/spaces/kottakur/warehouse-priority-env](https://huggingface.co/spaces/kottakur/warehouse-priority-env)
+
+---
+
+## 📜 License
+This project is developed for educational and hackathon purposes. Use is permitted for learning and experimentation.
