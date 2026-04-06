@@ -1,5 +1,6 @@
 import copy
 import random
+from server.schema import Observation
 
 
 class WarehouseEnv:
@@ -58,7 +59,7 @@ class WarehouseEnv:
         return self.get_state()
 
 
-    def get_state(self):
+    def get_state(self) -> Observation:
 
         current_order = None
 
@@ -83,30 +84,26 @@ class WarehouseEnv:
                 priority = "Urgent"
 
 
-        return {
+        return Observation(
 
-            "inventory": self.inventory,
+            inventory=self.inventory,
 
-            "current_order": current_order,
+            current_order=current_order,
 
-            "current_deadline": deadline,
+            current_deadline=deadline,
 
-            "priority": priority,
+            priority=priority,
 
-            "returns_pending":
-                self.returns_queue,
+            returns_pending=self.returns_queue,
 
-            "inspection_pending":
-                self.inspection_queue,
+            inspection_pending=self.inspection_queue,
 
-            "packed_orders":
-                self.packed_orders,
+            packed_orders=self.packed_orders,
 
-            "shipped_orders":
-                self.shipped_orders,
+            shipped_orders=self.shipped_orders,
 
-            "time_left": self.time_left
-        }
+            time_left=self.time_left
+        )
 
 
     def step(self, action):

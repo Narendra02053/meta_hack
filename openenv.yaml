@@ -1,80 +1,42 @@
-name: warehouse_priority_env
+name: "WarehousePriorityEnv"
+description: "A high-fidelity warehouse simulation environment for testing AI agents on order fulfillment, inventory management, and deadline prioritization."
+version: "1.0.0"
+author: "Narendra <nn7116580@gmail.com>"
+tags:
+  - "openenv"
+  - "supply-chain"
+  - "logistics"
+  - "task-planning"
 
-description: >
-  A real-world warehouse simulation environment with
-  deadline-based order processing, returns handling,
-  and priority escalation. Agents must manage
-  inventory, process customer orders, handle returns,
-  and meet delivery deadlines.
-
-version: "1.0"
-
-entrypoint: server.environment:WarehouseEnv
+environment:
+  observation_space:
+    inventory: "dict[str, int] - Current stock levels"
+    current_order: "dict[str, int] - Items needed for the active order"
+    inspection_pending: "list[str] - Items waiting to be restocked"
+    returns_pending: "list[str] - Returns waiting for inspection"
+    packed_orders: "int - Number of orders ready for shipping"
+    shipped_orders: "int - Number of orders successfully shipped"
+    time_left: "int - Remaining steps in the episode"
+  
+  action_space:
+    pick_<item>: "Pick a specific item from inventory"
+    pack_order: "Pack the current order if all items are picked"
+    ship_order: "Ship a packed order to the customer"
+    inspect_return: "Process a pending return into the inspection queue"
+    restock_<item>: "Move an item from inspection to inventory"
+    wait: "No-op action (minimal time penalty)"
 
 tasks:
+  - id: "easy"
+    difficulty: "easy"
+    description: "Manage a small inventory and fulfill 3 simple orders."
+  - id: "medium"
+    difficulty: "medium"
+    description: "Handle 6 orders with parallel worker simulations and returns."
+  - id: "hard"
+    difficulty: "hard"
+    description: "Manage 10 complex orders with high return volume and tight deadlines."
 
-  - name: easy
-    description: >
-      Small number of orders with basic deadlines
-      and minimal returns.
-    difficulty: easy
-
-  - name: medium
-    description: >
-      Moderate number of orders with increased
-      returns and tighter deadlines.
-    difficulty: medium
-
-  - name: hard
-    description: >
-      Large number of simultaneous orders,
-      frequent returns, and strict deadlines
-      requiring advanced scheduling.
-
-action_space:
-
-  type: discrete
-
-  actions:
-
-    - pick_product
-
-    - pack_order
-
-    - ship_order
-
-    - inspect_return
-
-    - restock_product
-
-    - wait
-
-observation_space:
-
-  includes:
-
-    - inventory_levels
-
-    - current_order
-
-    - deadline_remaining
-
-    - order_priority
-
-    - returns_queue
-
-    - inspection_queue
-
-reward:
-
-  description: >
-    Dense reward shaping based on correct
-    picking, packing, shipping, and meeting
-    deadlines. Urgent orders provide higher
-    reward and penalty signals.
-
-validation:
-
-  min_tasks_required: 3
-
-  grader_score_range: [0.0, 1.0]
+grading:
+  formula: "0.7 * (shipped / total) + 0.3 * (time_remaining / total_time)"
+  threshold: 0.80

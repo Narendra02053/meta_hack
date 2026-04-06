@@ -5,3 +5,5 @@ gymnasium
 openenv
 requests
 httpx
+pydantic
+openai

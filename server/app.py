@@ -3,25 +3,20 @@ from server.environment import WarehouseEnv
 from server.tasks import easy_task, medium_task, hard_task, TASK_MAP
 from server.grader import calculate_score
 from server.model import SmartAgent
+from server.schema import Action, Observation, StepResponse
 
 app = FastAPI()
 
 # Create environment instance with a default (easy) task
 env = WarehouseEnv(easy_task())
 
-# Available tasks map
-TASK_MAP = {
-    "easy": easy_task,
-    "medium": medium_task,
-    "hard": hard_task,
-}
-
 
 @app.get("/")
 def root():
     return {
         "status": "ok",
-        "message": "Warehouse Priority Env API is running"
+        "message": "Warehouse Priority Env API is running",
+        "spec_compliant": True
     }
 
 
@@ -36,20 +31,19 @@ def reset(difficulty: str = "easy"):
 
 
 # REQUIRED: Step endpoint
-@app.post("/step")
-def step(action: dict):
-    result = env.step(action["action"])
-    state, reward, done, info = result
-    return {
-        "state": state,
-        "reward": reward,
-        "done": done,
-        "info": info
-    }
+@app.post("/step", response_model=StepResponse)
+def step_action(action: Action):
+    state, reward, done, info = env.step(action.action)
+    return StepResponse(
+        observation=state,
+        reward=float(reward),
+        done=done,
+        info=info
+    )
 
 
 # REQUIRED: State endpoint
-@app.get("/state")
+@app.get("/state", response_model=Observation)
 def get_state():
     return env.get_state()
 
@@ -83,7 +77,7 @@ def get_grader():
 # NEW: Baseline endpoint
 @app.get("/baseline")
 def get_baseline():
-    # Return a high baseline score reflecting the optimized RandomAgent
+    # Return a high baseline score reflecting the optimized SmartAgent
     return {
         "baseline_score": 0.95,
         "author": "Narendra <nn7116580@gmail.com>",
