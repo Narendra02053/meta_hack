@@ -1,0 +1,80 @@
+name: warehouse_priority_env
+
+description: >
+  A real-world warehouse simulation environment with
+  deadline-based order processing, returns handling,
+  and priority escalation. Agents must manage
+  inventory, process customer orders, handle returns,
+  and meet delivery deadlines.
+
+version: "1.0"
+
+entrypoint: server.environment:WarehouseEnv
+
+tasks:
+
+  - name: easy
+    description: >
+      Small number of orders with basic deadlines
+      and minimal returns.
+    difficulty: easy
+
+  - name: medium
+    description: >
+      Moderate number of orders with increased
+      returns and tighter deadlines.
+    difficulty: medium
+
+  - name: hard
+    description: >
+      Large number of simultaneous orders,
+      frequent returns, and strict deadlines
+      requiring advanced scheduling.
+
+action_space:
+
+  type: discrete
+
+  actions:
+
+    - pick_product
+
+    - pack_order
+
+    - ship_order
+
+    - inspect_return
+
+    - restock_product
+
+    - wait
+
+observation_space:
+
+  includes:
+
+    - inventory_levels
+
+    - current_order
+
+    - deadline_remaining
+
+    - order_priority
+
+    - returns_queue
+
+    - inspection_queue
+
+reward:
+
+  description: >
+    Dense reward shaping based on correct
+    picking, packing, shipping, and meeting
+    deadlines. Urgent orders provide higher
+    reward and penalty signals.
+
+validation:
+
+  min_tasks_required: 3
+
+  grader_score_range: [0.0, 1.0]
