@@ -5,12 +5,18 @@ class SmartAgent:
         pass
 
     def act(self, state):
-        inventory = state.get("inventory", {})
-        order = state.get("current_order")
-        inspections = state.get("inspection_pending", [])
-        returns = state.get("returns_pending", [])
-        packed = state.get("packed_orders", 0)
-        shipped = state.get("shipped_orders", 0)
+        # Support both Pydantic model (Observation) and regular dictionary
+        if hasattr(state, "model_dump"):
+            s = state.model_dump()
+        else:
+            s = state
+
+        inventory = s.get("inventory", {})
+        order = s.get("current_order")
+        inspections = s.get("inspection_pending", [])
+        returns = s.get("returns_pending", [])
+        packed = s.get("packed_orders", 0)
+        shipped = s.get("shipped_orders", 0)
 
         # 1. Ship any packed orders
         if packed > shipped:
