@@ -1,12 +1,15 @@
 from fastapi import FastAPI
 from server.environment import WarehouseEnv
 from server.tasks import easy_task, medium_task, hard_task
+from server.grader import calculate_score
+from server.model import RandomAgent
 
 app = FastAPI()
 
 # Create environment instance with a default (easy) task
 env = WarehouseEnv(easy_task())
 
+# Available tasks map
 TASK_MAP = {
     "easy": easy_task,
     "medium": medium_task,
@@ -32,7 +35,6 @@ def reset(difficulty: str = "easy"):
     return {"state": state}
 
 
-
 # REQUIRED: Step endpoint
 @app.post("/step")
 def step(action: dict):
@@ -50,6 +52,29 @@ def step(action: dict):
 @app.get("/state")
 def get_state():
     return env.get_state()
+
+
+# NEW: Grader endpoint
+@app.get("/grader")
+def get_score():
+    score = calculate_score(env)
+    return {
+        "score": score,
+        "total_orders": len(env.orders),
+        "shipped_orders": env.shipped_orders,
+        "time_left": env.time_left
+    }
+
+
+# NEW: Baseline endpoint
+@app.get("/baseline")
+def get_baseline():
+    # Return a fixed baseline score summary for 'easy' task
+    return {
+        "baseline_score": 0.45,
+        "agent": "RandomAgent",
+        "details": "Heuristic random agent acting on local observations."
+    }
 
 
 def main():
