@@ -1,4 +1,15 @@
+---
+title: Warehouse Priority Env
+emoji: 📦
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # 📦 Warehouse Priority Environment
+
 
 A real-world inspired warehouse simulation environment built using **OpenEnv** standards. 
 
