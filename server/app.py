@@ -23,13 +23,14 @@ def root():
 
 
 # REQUIRED: Reset endpoint
-@app.post("/reset")
+@app.api_route("/reset", methods=["GET", "POST"])
 def reset(difficulty: str = "easy"):
     global env
     task_fn = TASK_MAP.get(difficulty, easy_task)
     env = WarehouseEnv(task_fn())
     state = env.get_state()
     return {"state": state}
+
 
 
 # REQUIRED: Step endpoint
