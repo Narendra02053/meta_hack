@@ -187,3 +187,10 @@ def hard_task():
         "time": 40
 
     }
+
+
+TASK_MAP = {
+    "easy": easy_task,
+    "medium": medium_task,
+    "hard": hard_task
+}
