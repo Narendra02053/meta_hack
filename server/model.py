@@ -1,22 +1,42 @@
 import random
 
-class RandomAgent:
-    def __init__(self, actions):
-        self.actions = actions
+class SmartAgent:
+    def __init__(self, actions=None):
+        pass
 
     def act(self, state):
-        # A simple heuristic: if there's a return, maybe inspect it.
-        # If there's an inspection pending, restock.
-        # Otherwise pick or ship.
-        
-        if state.get("inspection_pending") and len(state["inspection_pending"]) > 0:
-            return f"restock_{state['inspection_pending'][0]}"
+        inventory = state.get("inventory", {})
+        order = state.get("current_order")
+        inspections = state.get("inspection_pending", [])
+        returns = state.get("returns_pending", [])
+        packed = state.get("packed_orders", 0)
+        shipped = state.get("shipped_orders", 0)
+
+        # 1. Ship any packed orders
+        if packed > shipped:
+            return "ship_order"
+
+        # 2. Restock items to boost inventory
+        if inspections:
+            return f"restock_{inspections[0]}"
+
+        # 3. Handle Order Picking
+        if order:
+            # Check if we have all items
+            all_picked = True
+            for product, count in order.items():
+                if count > 0:
+                    all_picked = False
+                    # Can we pick this item?
+                    if inventory.get(product, 0) > 0:
+                        return f"pick_{product}"
             
-        if state.get("returns_pending") and len(state["returns_pending"]) > 0:
+            if all_picked:
+                return "pack_order"
+
+        # 4. Process Returns if inventory is low or order can't be fulfilled
+        if returns:
             return "inspect_return"
-            
-        if state.get("current_order"):
-            # Sample from possible actions
-            return random.choice(self.actions)
-            
+
+        # 5. Fallback to wait (minimal penalty)
         return "wait"
