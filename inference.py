@@ -28,9 +28,10 @@ def run():
 
         # 2. Main Agent Loop
         print("[AGENT] Starting Warehouse Optimization Routine...")
-        while not done and step_count < 100:
+        while not done and step_count < 500:
             step_count += 1
             action = "wait" # Default action
+
             
             # --- AGENT LOGIC ---
             order = state.get("current_order")
