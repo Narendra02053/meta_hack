@@ -7,7 +7,7 @@ name = "warehouse_priority_env"
 version = "1.0.0"
 description = "A real-world warehouse simulation environment for OpenEnv hackathons."
 authors = [
-    { name = "Narendra", email = "help_openenvhackathon@scaler.com" }
+    { name = "Narendra", email = "nn7116580@gmail.com" }
 ]
 dependencies = [
     "fastapi",
