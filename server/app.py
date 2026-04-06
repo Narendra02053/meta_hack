@@ -3,7 +3,6 @@ from server.environment import WarehouseEnv
 from server.tasks import easy_task, medium_task, hard_task, TASK_MAP
 from server.grader import calculate_score
 from server.model import SmartAgent
-from server.model import RandomAgent
 
 app = FastAPI()
 
