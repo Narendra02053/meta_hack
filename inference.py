@@ -91,6 +91,7 @@ def get_llm_action(state: Dict[str, Any]) -> str:
 
 def run_episode(difficulty: str = "easy"):
     print(f"\n🚀 Starting Task: {difficulty.upper()}")
+    print(f"[START] task={difficulty}", flush=True)
     
     try:
         # Reset
@@ -119,9 +120,11 @@ def run_episode(difficulty: str = "easy"):
             total_reward += reward
             
             print(f"Step {steps:02} | Action: {action.ljust(15)} | Reward: {reward:+.2f} | Total: {total_reward:.2f}")
+            print(f"[STEP] step={steps} reward={reward}", flush=True)
             time.sleep(0.05)
             
         print(f"🏁 Task {difficulty} Finished. Final Score: {total_reward:.2f}")
+        print(f"[END] task={difficulty} score={total_reward} steps={steps}", flush=True)
         return total_reward
 
     except Exception as e:
