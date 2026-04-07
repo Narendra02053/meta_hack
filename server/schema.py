@@ -11,6 +11,8 @@ class Observation(BaseModel):
     packed_orders: int
     shipped_orders: int
     time_left: int
+    total_orders: int
+    time_limit: int
 
 class Action(BaseModel):
     action: str

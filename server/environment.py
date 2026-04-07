@@ -101,8 +101,9 @@ class WarehouseEnv:
             packed_orders=self.packed_orders,
 
             shipped_orders=self.shipped_orders,
-
-            time_left=self.time_left
+            time_left=self.time_left,
+            total_orders=len(self.orders),
+            time_limit=self.time_limit
         )
 
 

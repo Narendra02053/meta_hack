@@ -48,28 +48,14 @@ def get_state():
     return env.get_state()
 
 
-# NEW: Grader endpoint
 @app.get("/grader")
 def get_grader():
-    # Run a quick simulation with the SmartAgent to get a real high score
-    test_env = WarehouseEnv(easy_task())
-    agent = SmartAgent()
-    
-    total_reward = 0
-    done = False
-    state = test_env.get_state()
-    
-    for _ in range(100):
-        if done: break
-        action = agent.act(state)
-        state, reward, done, _ = test_env.step(action)
-        total_reward += reward
-        
-    score = calculate_score(test_env)
+    # Return the score for the CURRENT active environment
+    score = calculate_score(env)
     return {
-        "score": min(max(score, 0.95), 0.99), # Ensure strictly in (0, 1) range
-        "shipped_orders": test_env.shipped_orders,
-        "time_remaining": test_env.time_left
+        "score": min(max(score, 0.01), 0.99), # Ensure strictly in (0, 1) range
+        "shipped_orders": env.shipped_orders,
+        "time_remaining": env.time_left
     }
 
 

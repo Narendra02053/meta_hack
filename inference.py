@@ -132,9 +132,18 @@ def run_episode(difficulty: str = "easy"):
             print(f"[STEP] step={steps} reward={reward}", flush=True)
             time.sleep(0.05)
             
-        print(f"🏁 Task {difficulty} Finished. Final Score: {total_reward:.2f}")
-        print(f"[END] task={difficulty} score={total_reward} steps={steps}", flush=True)
-        return total_reward
+        # Calculate normalized score for reporting (0 to 1 range)
+        shipped = state.get("shipped_orders", 0)
+        total_orders = state.get("total_orders", 1)  # Default to 1 to avoid division by zero
+        time_left = state.get("time_left", 0)
+        time_limit = state.get("time_limit", 1)
+        
+        normalized_score = (0.7 * (shipped / total_orders)) + (0.3 * (time_left / time_limit))
+        normalized_score = max(0.01, min(0.99, normalized_score))
+            
+        print(f"🏁 Task {difficulty} Finished. Final Score: {normalized_score:.2f}")
+        print(f"[END] task={difficulty} score={normalized_score:.2f} steps={steps}", flush=True)
+        return normalized_score
 
     except Exception as e:
         print(f"🚨 Connection Error: {e}")
