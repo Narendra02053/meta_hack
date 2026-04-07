@@ -79,7 +79,7 @@ def get_grader():
 def get_baseline():
     # Return a high baseline score reflecting the optimized SmartAgent
     return {
-        "baseline_score": 0.95,
+        "baseline_score": min(max(0.95, 0.01), 0.99), # Ensure strictly in (0, 1) range
         "author": "Narendra <nn7116580@gmail.com>",
         "details": "Heuristic agent with inventory awareness and shipping prioritization."
     }
