@@ -28,13 +28,8 @@ def calculate_score(env):
 
 
     # Clamp score between 0 and 1
-    final_score = max(
-
-        0.0,
-
-        min(1.0, final_score)
-
-    )
+    # Clamp score strictly between 0 and 1 (Required by platform)
+    final_score = max(0.01, min(0.99, final_score))
 
 
     return final_score
