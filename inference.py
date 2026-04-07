@@ -5,15 +5,24 @@ import json
 from openai import OpenAI
 from typing import Dict, Any
 
-API_BASE_URL = os.getenv(
-    "API_BASE_URL",
-    "http://localhost:7860"
-)
+# --- Configuration ---
+# The warehouse environment server URL
+SERVER_URL = os.getenv("SERVER_URL", "http://localhost:7860")
 
-# Optional: Set OPENAI_API_KEY in environment to enable LLM-based decision making
-# If not set, system defaults to the high-performance SmartHeuristic logic.
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+# LiteLLM Proxy Configuration (Required for Hackathon Submission)
+API_BASE_URL = os.getenv("API_BASE_URL")
+API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
+
+# Initialize OpenAI Client to use the provided proxy
+if API_BASE_URL and API_KEY:
+    print(f"📡 Using LiteLLM Proxy: {API_BASE_URL}")
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+elif API_KEY:
+    print("🔑 Using Standard OpenAI API (Direct)")
+    client = OpenAI(api_key=API_KEY)
+else:
+    print("⚠️ No API Key found. Falling back to SmartHeuristic logic.")
+    client = None
 
 
 def get_heuristic_action(state: Dict[str, Any]) -> str:
@@ -95,7 +104,7 @@ def run_episode(difficulty: str = "easy"):
     
     try:
         # Reset
-        resp = httpx.post(f"{API_BASE_URL}/reset", params={"difficulty": difficulty})
+        resp = httpx.post(f"{SERVER_URL}/reset", params={"difficulty": difficulty})
         state = resp.json()# Note: /reset returns {"state": {...}} or just {...} depending on backend
         if "state" in state: state = state["state"]
         
@@ -105,9 +114,9 @@ def run_episode(difficulty: str = "easy"):
         
         while not done and steps < 100:
             steps += 1
-            action = get_llm_action(state) if OPENAI_API_KEY else get_heuristic_action(state)
+            action = get_llm_action(state)
             
-            step_resp = httpx.post(f"{API_BASE_URL}/step", json={"action": action})
+            step_resp = httpx.post(f"{SERVER_URL}/step", json={"action": action})
             if step_resp.status_code != 200:
                 print(f"❌ Error: {step_resp.text}")
                 break
