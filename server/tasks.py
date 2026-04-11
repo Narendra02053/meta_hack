@@ -27,7 +27,7 @@ PRODUCTS = [
 # HELPER FUNCTIONS
 # -------------------------
 
-def generate_inventory(size):
+def generate_inventory(size, min_stock=5, max_stock=15):
 
     inventory = {}
 
@@ -39,15 +39,15 @@ def generate_inventory(size):
     for product in selected:
 
         inventory[product] = random.randint(
-            5,
-            15
+            min_stock,
+            max_stock
         )
 
     return inventory
 
 
 
-def generate_orders(inventory, num_orders):
+def generate_orders(inventory, num_orders, min_items=1, max_items=3):
 
     orders = []
 
@@ -58,8 +58,8 @@ def generate_orders(inventory, num_orders):
         order = {}
 
         num_items = random.randint(
-            1,
-            3
+            min_items,
+            max_items
         )
 
         selected = random.sample(
@@ -162,11 +162,13 @@ def medium_task():
 
 def hard_task():
 
-    inventory = generate_inventory(10)
+    inventory = generate_inventory(10, min_stock=15, max_stock=25)
 
     orders = generate_orders(
         inventory,
-        10
+        18,
+        min_items=2,
+        max_items=5
     )
 
     returns = generate_returns(
@@ -184,7 +186,7 @@ def hard_task():
 
         "workers": 2,
 
-        "time": 40
+        "time": 150
 
     }
 

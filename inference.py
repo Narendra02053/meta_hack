@@ -112,7 +112,8 @@ def run_episode(difficulty: str = "easy"):
         total_reward = 0
         steps = 0
         
-        while not done and steps < 100:
+        max_steps = state.get("time_limit", 200)
+        while not done and steps < max_steps:
             steps += 1
             action = get_llm_action(state)
             

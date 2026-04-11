@@ -64,6 +64,16 @@ class WarehouseEnv:
             for _ in self.orders
         ]
 
+        # 📊 Performance Metrics
+        self.metrics = {
+            "orders_completed": 0,
+            "urgent_orders_completed": 0,
+            "late_orders": 0,
+            "stockouts": 0,
+            "restocks_triggered": 0,
+            "total_steps": 0
+        }
+
         return self.get_state()
 
 
@@ -120,6 +130,25 @@ class WarehouseEnv:
         )
 
 
+    def print_state_summary(self):
+        """Prints a readable snapshot of the warehouse status."""
+        if not hasattr(self, 'metrics'):
+            return
+
+        print("\n" + "="*30)
+        print("      [WAREHOUSE SUMMARY]      ")
+        print("="*30)
+        print(f"Total Orders         : {len(self.orders)}")
+        print(f"Orders Completed    : {self.metrics['orders_completed']}")
+        print(f"Urgent Orders Handled: {self.metrics['urgent_orders_completed']}")
+        print(f"Late Orders         : {self.metrics['late_orders']}")
+        print(f"Stockouts           : {self.metrics['stockouts']}")
+        print(f"Restocks Triggered  : {self.metrics['restocks_triggered']}")
+        print(f"Total Steps Used    : {self.metrics['total_steps']}/{self.time_limit}")
+        print(f"Remaining Time Steps: {self.time_left}")
+        print("="*30 + "\n")
+
+
     def step(self, action):
 
         reward = 0
@@ -127,6 +156,10 @@ class WarehouseEnv:
         done = False
 
         info = {}
+        
+        # Increment total steps
+        if hasattr(self, 'metrics'):
+            self.metrics["total_steps"] += 1
 
         # --------------------
         # Random External Event
@@ -148,6 +181,8 @@ class WarehouseEnv:
             if self.order_deadlines[self.current_order_index] == 0:
                 reward -= 0.5
                 info["message"] = "Order status: late"
+                if hasattr(self, 'metrics'):
+                    self.metrics["late_orders"] += 1
 
 
         # --------------------
@@ -219,6 +254,9 @@ class WarehouseEnv:
                     reward -= 0.3
 
                     info["message"] = f"Out of stock for {product}"
+                    
+                    if hasattr(self, 'metrics'):
+                        self.metrics["stockouts"] += 1
 
                 elif (
                     product in current_order
@@ -295,6 +333,21 @@ class WarehouseEnv:
 
                             reward -= 0.5
 
+                    # 🚀 Priority-Based Reward Boost
+                    is_urgent = (deadline <= 3) or (hasattr(self, 'random_urgent_flags') and self.random_urgent_flags[self.current_order_index])
+                    if is_urgent:
+                        if deadline >= 0:
+                            reward += 0.3 # bonus for urgent success
+                        else:
+                            reward -= 0.3 # extra penalty for urgent failure
+
+
+                    if hasattr(self, 'metrics'):
+                        self.metrics["orders_completed"] += 1
+                        
+                        # Track urgent completions (using is_urgent calculated above)
+                        if is_urgent:
+                            self.metrics["urgent_orders_completed"] += 1
 
                     self.shipped_orders += 1
 
@@ -335,6 +388,24 @@ class WarehouseEnv:
             reward += 1.0
 
             done = True
+
+
+        # --------------------
+        # Auto-Restocking Strategy
+        # --------------------
+        for product, count in self.inventory.items():
+            if count < 2:
+                self.inventory[product] += 5
+                reward -= 0.05
+                info["message"] = f"Auto-restocked {product} due to low inventory"
+                if hasattr(self, 'metrics'):
+                    self.metrics["restocks_triggered"] += 1
+                print(f"Auto-restocked {product} due to low inventory")
+
+
+        # Print Metrics Summary when finished
+        if done:
+            self.print_state_summary()
 
 
         return self.get_state(), reward, done, info
