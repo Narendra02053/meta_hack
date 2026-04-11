@@ -56,6 +56,14 @@ class WarehouseEnv:
 
         ]
 
+        # 🔴 Random Urgent Events
+        self.random_urgent_flags = [
+            
+            random.random() < 0.1
+            
+            for _ in self.orders
+        ]
+
         return self.get_state()
 
 
@@ -80,6 +88,11 @@ class WarehouseEnv:
 
             # 🔴 Priority Escalation
             if deadline is not None and deadline <= 3:
+
+                priority = "Urgent"
+
+            # 🔴 Random Urgent Event
+            elif hasattr(self, 'random_urgent_flags') and self.random_urgent_flags[self.current_order_index]:
 
                 priority = "Urgent"
 
@@ -115,6 +128,12 @@ class WarehouseEnv:
 
         info = {}
 
+        # --------------------
+        # Random External Event
+        # --------------------
+        if random.random() < 0.1:
+            reward -= 0.1
+            info["message"] = "External delay occurred"
 
         # --------------------
         # Deadline Countdown
@@ -125,6 +144,10 @@ class WarehouseEnv:
             self.order_deadlines[
                 self.current_order_index
             ] -= 1
+
+            if self.order_deadlines[self.current_order_index] == 0:
+                reward -= 0.5
+                info["message"] = "Order status: late"
 
 
         # --------------------
@@ -166,6 +189,8 @@ class WarehouseEnv:
                 self.inventory[product] += 1
 
                 reward += 0.3
+                
+                print("Inventory updated")
 
             else:
 
@@ -189,7 +214,13 @@ class WarehouseEnv:
 
                 product = action.split("_")[1]
 
-                if (
+                if self.inventory.get(product, 0) <= 0:
+
+                    reward -= 0.3
+
+                    info["message"] = f"Out of stock for {product}"
+
+                elif (
                     product in current_order
                     and self.inventory.get(
                         product, 0
@@ -239,7 +270,6 @@ class WarehouseEnv:
                         self.current_order_index
                     ]
 
-
                     # 🔴 Priority-Based Reward
 
                     if deadline >= 0:
@@ -269,6 +299,8 @@ class WarehouseEnv:
                     self.shipped_orders += 1
 
                     self.current_order_index += 1
+                    
+                    print("Order shipped successfully")
 
                 else:
 
