@@ -8,7 +8,7 @@ from server.schema import Action, Observation, StepResponse
 app = FastAPI()
 
 # Create environment instance with a default (easy) task
-env = WarehouseEnv(easy_task())
+app.state.env = WarehouseEnv(easy_task())
 
 
 @app.get("/")
@@ -16,60 +16,55 @@ def root():
     return {
         "status": "ok",
         "message": "Warehouse Priority Env API is running",
-        "spec_compliant": True
+        "spec_compliant": True,
     }
 
 
 # REQUIRED: Reset endpoint
 @app.api_route("/reset", methods=["GET", "POST"])
 def reset(difficulty: str = "easy"):
-    global env
     task_fn = TASK_MAP.get(difficulty, easy_task)
-    env = WarehouseEnv(task_fn())
-    state = env.get_state()
+    app.state.env = WarehouseEnv(task_fn())
+    state = app.state.env.get_state()
     return {"state": state}
 
 
 # REQUIRED: Step endpoint
 @app.post("/step", response_model=StepResponse)
 def step_action(action: Action):
-    state, reward, done, info = env.step(action.action)
+    state, reward, done, info = app.state.env.step(action.action)
     return StepResponse(
         observation=state,
         reward=float(reward),
         done=done,
-        info=info
+        info=info,
     )
 
 
 # REQUIRED: State endpoint
 @app.get("/state", response_model=Observation)
 def get_state():
-    return env.get_state()
+    return app.state.env.get_state()
 
 
 @app.get("/grader")
 def get_grader():
-    # Return the score for the CURRENT active environment
-    score = calculate_score(env)
+    score = calculate_score(app.state.env)
     return {
-        "score": min(max(score, 0.01), 0.99), # Ensure strictly in (0, 1) range
-        "shipped_orders": env.shipped_orders,
-        "time_remaining": env.time_left
+        "score": min(max(score, 0.01), 0.99),  # Ensure strictly in (0, 1) range
+        "shipped_orders": app.state.env.shipped_orders,
+        "time_remaining": app.state.env.time_left,
     }
-
 
 
 # NEW: Baseline endpoint
 @app.get("/baseline")
 def get_baseline():
-    # Return a high baseline score reflecting the optimized SmartAgent
     return {
-        "baseline_score": min(max(0.95, 0.01), 0.99), # Ensure strictly in (0, 1) range
+        "baseline_score": min(max(0.95, 0.01), 0.99),  # Ensure strictly in (0, 1) range
         "author": "Narendra <nn7116580@gmail.com>",
-        "details": "Heuristic agent with inventory awareness and shipping prioritization."
+        "details": "Heuristic agent with inventory awareness and shipping prioritization.",
     }
-
 
 
 def main():
