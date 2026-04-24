@@ -11,6 +11,8 @@ class WarehouseEnv:
             "NORMAL": 2,
             "LOW": 1
         }
+        # STEP 1 — Add Obstacle Layout
+        self.obstacles = [(1, 2), (2, 2), (3, 2), (1, 3), (2, 3)]
         self.total_reward = 0
         self.step_count = 0
         self.tasks_completed = 0
@@ -52,6 +54,15 @@ class WarehouseEnv:
         self.total_reward = 0
         self.step_count = 0
         self.tasks_completed = 0
+        
+        # STEP 6 — Optional Advanced Layout (Randomize obstacles)
+        # Uncomment below to enable randomization
+        # self.obstacles = []
+        # reserved = [(0,0), (4,4), (1,1), (3,0), (0,4)] # Spawn/Pickup/Drop points
+        # while len(self.obstacles) < 5:
+        #     obs = (random.randint(0,4), random.randint(0,4))
+        #     if obs not in reserved and obs not in self.obstacles:
+        #         self.obstacles.append(obs)
 
         return self.get_state()
 
@@ -59,6 +70,7 @@ class WarehouseEnv:
         state = {
             "robots": self.robots,
             "tasks": self.tasks,
+            "obstacles": self.obstacles,
             "logs": self.logs[-5:] # Return last 5 logs
         }
         return state
@@ -81,11 +93,9 @@ class WarehouseEnv:
             action_at_target = "wait"
         else:
             # STEP 3 — Implement Intelligent Task Selection
-            # Check for active task already assigned to this robot
             active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"] and not t["failed"]), None)
             
             if not active_task and not robot["carrying"]:
-                # Try to pick a new task
                 available_tasks = [t for t in self.tasks if t["assigned"] is None and not t["completed"] and not t["failed"]]
                 
                 if available_tasks:
@@ -93,33 +103,25 @@ class WarehouseEnv:
                         tx, ty = task["pickup"]
                         return abs(rx - tx) + abs(ry - ty)
                     
-                    # STEP 4 — Modify Intelligent Task Selection Sorting
-                    # Sort by priority (descending), deadline (ascending), and distance (ascending)
                     available_tasks.sort(key=lambda t: (-self.priority_weights[t["priority"]], t["deadline"], distance(t)))
-                    
-                    # Assign best task
                     best_task = available_tasks[0]
                     best_task["assigned"] = robot["id"]
                     active_task = best_task
-                    self.logs.append(f"Agent {robot['id']+1} auto-assigned {best_task['priority']} Task #{best_task['id']} (Deadline: {best_task['deadline']}).")
+                    self.logs.append(f"Agent {robot['id']+1} auto-assigned {best_task['priority']} Task #{best_task['id']}.")
 
             if active_task:
-                # 2. If robot carrying, move toward drop location
                 if robot["carrying"]:
                     target = active_task["drop"]
                     action_at_target = "drop"
-                # 1. If robot not carrying, move toward pickup location
                 else:
                     target = active_task["pickup"]
                     action_at_target = "pickup"
             else:
                 return "wait"
 
-        # 4. Movement Strategy (with basic avoidance)
+        # STEP 4 — Improve Intelligent Navigation (Obstacle-Aware)
         if target:
             tx, ty = target
-            
-            # Perform action if already at target
             if rx == tx and ry == ty:
                 return action_at_target
                 
@@ -129,9 +131,9 @@ class WarehouseEnv:
             if ry < ty: preferred_moves.append("move_right")
             if ry > ty: preferred_moves.append("move_left")
             
-            # Check for robot-to-robot collision for preferred moves
             robot_positions = [r["position"] for r in self.robots if r["id"] != robot_id]
             
+            # Try preferred moves first
             for move in preferred_moves:
                 nx, ny = rx, ry
                 if move == "move_down": nx += 1
@@ -139,10 +141,21 @@ class WarehouseEnv:
                 elif move == "move_right": ny += 1
                 elif move == "move_left": ny -= 1
                 
-                if (nx, ny) not in robot_positions:
+                if (nx, ny) not in robot_positions and (nx, ny) not in self.obstacles:
                     return move
             
-            # If all preferred moves blocked, wait to avoid gridlock
+            # If preferred moves blocked, try ANY valid move
+            for move in ["move_up", "move_down", "move_left", "move_right"]:
+                nx, ny = rx, ry
+                if move == "move_up": nx -= 1
+                elif move == "move_down": nx += 1
+                elif move == "move_left": ny -= 1
+                elif move == "move_right": ny += 1
+                
+                if 0 <= nx < self.grid_size[0] and 0 <= ny < self.grid_size[1]:
+                    if (nx, ny) not in robot_positions and (nx, ny) not in self.obstacles:
+                        return move
+            
             return "wait"
 
         return "wait"
@@ -152,24 +165,19 @@ class WarehouseEnv:
         reward = 0
         done = False
 
-        # STEP 2 — Decrease Deadline Each Step
         for task in self.tasks:
             if not task["completed"] and not task["failed"]:
                 task["deadline"] -= 1
-                # STEP 3 — Handle Deadline Expiry
                 if task["deadline"] <= 0:
                     task["failed"] = True
                     reward -= 20
                     self.logs.append(f"Task #{task['id']} failed due to deadline expiry!")
-                    # If robot was assigned this task, clear it
                     if task["assigned"] is not None:
                         assigned_robot = self.robots[task["assigned"]]
-                        assigned_robot["carrying"] = False # Simple reset
+                        assigned_robot["carrying"] = False
 
-        # Get the task assigned to this robot
         active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"] and not t["failed"]), None)
 
-        # 2. Movement Logic & Collision Detection
         if action in ["move_up", "move_down", "move_left", "move_right"]:
             if robot["battery"] <= 0:
                 reward -= 10
@@ -190,7 +198,13 @@ class WarehouseEnv:
                 reward -= 1
 
                 nx, ny = robot["position"]
-                if nx < 0 or nx >= self.grid_size[0] or ny < 0 or ny >= self.grid_size[1]:
+                
+                # STEP 2 & 5 — Modify Movement Logic & Collision Penalty
+                if (nx, ny) in self.obstacles:
+                    robot["position"] = previous_position
+                    reward -= 5
+                    self.logs.append(f"Agent {robot['id']+1} hit obstacle at {(nx, ny)}!")
+                elif nx < 0 or nx >= self.grid_size[0] or ny < 0 or ny >= self.grid_size[1]:
                     robot["position"] = previous_position
                     reward -= 5
                 else:
@@ -216,16 +230,12 @@ class WarehouseEnv:
                     robot["carrying"] = False
                     active_task["completed"] = True
                     reward += 50
-                    
-                    # STEP 6 — Add Deadline & Priority Reward Bonuses
-                    reward += 5 # Completion before deadline bonus
-                    if active_task["priority"] == "HIGH":
-                        reward += 5
-                    elif active_task["priority"] == "LOW":
-                        reward += 1
+                    reward += 5 # Completion before deadline
+                    if active_task["priority"] == "HIGH": reward += 5
+                    elif active_task["priority"] == "LOW": reward += 1
                         
                     self.tasks_completed += 1
-                    self.logs.append(f"Agent {robot['id']+1} completed {active_task['priority']} Task #{active_task['id']} before deadline!")
+                    self.logs.append(f"Agent {robot['id']+1} completed Task #{active_task['id']}.")
 
         if robot["position"] in self.charging_stations:
             if robot["battery"] < 100:
@@ -246,12 +256,18 @@ class WarehouseEnv:
 
     def add_random_task(self):
         new_id = len(self.tasks)
-        pickup = (random.randint(0, self.grid_size[0]-1), random.randint(0, self.grid_size[1]-1))
-        drop = (random.randint(0, self.grid_size[0]-1), random.randint(0, self.grid_size[1]-1))
         
-        # Ensure pickup and drop are not the same
+        # Ensure task points are not in obstacles
+        def get_valid_pos():
+            while True:
+                pos = (random.randint(0,4), random.randint(0,4))
+                if pos not in self.obstacles:
+                    return pos
+                    
+        pickup = get_valid_pos()
+        drop = get_valid_pos()
         while drop == pickup:
-            drop = (random.randint(0, self.grid_size[0]-1), random.randint(0, self.grid_size[1]-1))
+            drop = get_valid_pos()
 
         self.tasks.append({
             "id": new_id,
@@ -263,7 +279,7 @@ class WarehouseEnv:
             "completed": False,
             "failed": False
         })
-        self.logs.append(f"New task #{new_id} spawned at {pickup} (Deadline: {self.tasks[-1]['deadline']}).")
+        self.logs.append(f"New task #{new_id} spawned at {pickup}.")
         return self.get_state()
 
 if __name__ == "__main__":

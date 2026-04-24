@@ -164,6 +164,9 @@ def render_grid(env):
             dx, dy = task["drop"]
             grid[dx][dy] = f"🏁{task['id']}"
 
+    for ox, oy in state.get("obstacles", []):
+        grid[ox][oy] = "⬛"
+
     for robot in state["robots"]:
         rx, ry = robot["position"]
         grid[rx][ry] = f"🤖{robot['id']+1}"
