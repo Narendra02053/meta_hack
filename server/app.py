@@ -1,76 +1,77 @@
-from fastapi import FastAPI
-from server.environment import WarehouseEnv
-from server.tasks import easy_task, medium_task, hard_task, TASK_MAP
-from server.grader import calculate_score
-from server.model import SmartAgent
-from server.schema import Action, Observation, StepResponse
+import sys
+import os
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional
 
-app = FastAPI()
+# Add root directory to path to import warehouse_env
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from warehouse_env import WarehouseEnv
 
-# Create environment instance with a default (easy) task
-app.state.env = WarehouseEnv(easy_task())
+app = FastAPI(title="Warehouse AI Multi-Agent API")
 
+# Persistent environment instance
+env = WarehouseEnv()
+
+class StepRequest(BaseModel):
+    robot_id: int
+    action: str
+
+class RobotState(BaseModel):
+    id: int
+    position: List[int]
+    battery: int
+    carrying: bool
+
+class TaskState(BaseModel):
+    id: int
+    pickup: List[int]
+    drop: List[int]
+    priority: str
+    deadline: int
+    assigned: Optional[int]
+    completed: bool
+    failed: bool
+
+class EnvState(BaseModel):
+    robots: List[RobotState]
+    tasks: List[TaskState]
+    obstacles: List[List[int]]
+    congestion_zones: List[List[int]]
+    logs: List[str]
 
 @app.get("/")
-def root():
+def read_root():
     return {
-        "status": "ok",
-        "message": "Warehouse Priority Env API is running",
-        "spec_compliant": True,
+        "status": "online",
+        "system": "Warehouse Multi-Agent AI",
+        "endpoints": ["/state", "/step", "/reset", "/add_task"]
     }
 
-
-# REQUIRED: Reset endpoint
-@app.api_route("/reset", methods=["GET", "POST"])
-def reset(difficulty: str = "easy"):
-    task_fn = TASK_MAP.get(difficulty, easy_task)
-    app.state.env = WarehouseEnv(task_fn())
-    state = app.state.env.get_state()
-    return {"state": state}
-
-
-# REQUIRED: Step endpoint
-@app.post("/step", response_model=StepResponse)
-def step_action(action: Action):
-    state, reward, done, info = app.state.env.step(action.action)
-    return StepResponse(
-        observation=state,
-        reward=float(reward),
-        done=done,
-        info=info,
-    )
-
-
-# REQUIRED: State endpoint
-@app.get("/state", response_model=Observation)
+@app.get("/state", response_model=EnvState)
 def get_state():
-    return app.state.env.get_state()
+    return env.get_state()
 
+@app.post("/reset", response_model=EnvState)
+def reset():
+    return env.reset()
 
-@app.get("/grader")
-def get_grader():
-    score = calculate_score(app.state.env)
+@app.post("/step")
+def step(request: StepRequest):
+    if request.robot_id < 0 or request.robot_id >= len(env.robots):
+        raise HTTPException(status_code=400, detail=f"Robot ID {request.robot_id} not found.")
+    
+    state, reward, done = env.step(request.robot_id, request.action)
     return {
-        "score": min(max(score, 0.01), 0.99),  # Ensure strictly in (0, 1) range
-        "shipped_orders": app.state.env.shipped_orders,
-        "time_remaining": app.state.env.time_left,
+        "state": state,
+        "reward": float(reward),
+        "done": done
     }
 
-
-# NEW: Baseline endpoint
-@app.get("/baseline")
-def get_baseline():
-    return {
-        "baseline_score": min(max(0.95, 0.01), 0.99),  # Ensure strictly in (0, 1) range
-        "author": "Narendra <nn7116580@gmail.com>",
-        "details": "Heuristic agent with inventory awareness and shipping prioritization.",
-    }
-
-
-def main():
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7860)
-
+@app.post("/add_task", response_model=EnvState)
+def add_task():
+    return env.add_random_task()
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
