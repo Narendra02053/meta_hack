@@ -199,8 +199,15 @@ with task_section:
     st.header("📋 Fulfillment Queue")
     task_list = []
     for task in st.session_state.state["tasks"]:
+        priority_display = {
+            "HIGH": "🔴 HIGH",
+            "NORMAL": "🟡 NORMAL",
+            "LOW": "🟢 LOW"
+        }.get(task["priority"], task["priority"])
+        
         task_list.append({
             "Ref": f"T#{task['id']}",
+            "Priority": priority_display,
             "Pickup": str(task["pickup"]),
             "Drop": str(task["drop"]),
             "State": "Fulfilled" if task["completed"] else "Active"

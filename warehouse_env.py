@@ -6,6 +6,11 @@ class WarehouseEnv:
         self.grid_size = (5, 5)
         # 1. Add Recharge Station locations
         self.charging_stations = [(0, 0), (4, 4)]
+        self.priority_weights = {
+            "HIGH": 3,
+            "NORMAL": 2,
+            "LOW": 1
+        }
         self.total_reward = 0
         self.step_count = 0
         self.tasks_completed = 0
@@ -18,6 +23,7 @@ class WarehouseEnv:
                 "id": 0,
                 "pickup": (1, 1),
                 "drop": (4, 4),
+                "priority": random.choice(["HIGH", "NORMAL", "LOW"]),
                 "assigned": None,
                 "completed": False
             },
@@ -25,6 +31,7 @@ class WarehouseEnv:
                 "id": 1,
                 "pickup": (3, 0),
                 "drop": (0, 4),
+                "priority": random.choice(["HIGH", "NORMAL", "LOW"]),
                 "assigned": None,
                 "completed": False
             }
@@ -69,9 +76,28 @@ class WarehouseEnv:
             target = nearest_station
             action_at_target = "wait"
         else:
-            # Check for active task
+            # STEP 3 — Implement Intelligent Task Selection
+            # Check for active task already assigned to this robot
             active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"]), None)
             
+            if not active_task and not robot["carrying"]:
+                # Try to pick a new task
+                available_tasks = [t for t in self.tasks if t["assigned"] is None and not t["completed"]]
+                
+                if available_tasks:
+                    def distance(task):
+                        tx, ty = task["pickup"]
+                        return abs(rx - tx) + abs(ry - ty)
+                    
+                    # Sort by priority (descending) and distance (ascending)
+                    available_tasks.sort(key=lambda t: (-self.priority_weights[t["priority"]], distance(t)))
+                    
+                    # Assign best task
+                    best_task = available_tasks[0]
+                    best_task["assigned"] = robot["id"]
+                    active_task = best_task
+                    self.logs.append(f"Agent {robot['id']+1} auto-assigned {best_task['priority']} Task #{best_task['id']}.")
+
             if active_task:
                 # 2. If robot carrying, move toward drop location
                 if robot["carrying"]:
@@ -121,15 +147,8 @@ class WarehouseEnv:
         reward = 0
         done = False
 
-        # 1. Dynamic Task Assignment
+        # Get the task assigned to this robot
         active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"]), None)
-        
-        if active_task is None and not robot["carrying"]:
-            available_task = next((t for t in self.tasks if t["assigned"] is None and not t["completed"]), None)
-            if available_task:
-                available_task["assigned"] = robot["id"]
-                active_task = available_task
-                self.logs.append(f"Agent {robot['id']+1} assigned Task #{available_task['id']}.")
 
         # 2. Movement Logic & Collision Detection
         if action in ["move_up", "move_down", "move_left", "move_right"]:
@@ -178,8 +197,15 @@ class WarehouseEnv:
                     robot["carrying"] = False
                     active_task["completed"] = True
                     reward += 50
+                    
+                    # STEP 6 — Add Priority Reward Bonus
+                    if active_task["priority"] == "HIGH":
+                        reward += 5
+                    elif active_task["priority"] == "LOW":
+                        reward += 1
+                        
                     self.tasks_completed += 1
-                    self.logs.append(f"Agent {robot['id']+1} completed Task #{active_task['id']}.")
+                    self.logs.append(f"Agent {robot['id']+1} completed {active_task['priority']} Task #{active_task['id']}.")
 
         if robot["position"] in self.charging_stations:
             if robot["battery"] < 100:
@@ -211,6 +237,7 @@ class WarehouseEnv:
             "id": new_id,
             "pickup": pickup,
             "drop": drop,
+            "priority": random.choice(["HIGH", "NORMAL", "LOW"]),
             "assigned": None,
             "completed": False
         })
@@ -219,23 +246,4 @@ class WarehouseEnv:
 
 if __name__ == "__main__":
     env = WarehouseEnv()
-    
     print("Initial State:", env.get_state())
-    
-    # 1. Drain battery to test movement prevention and recharge at station
-    env.robots[0]["battery"] = 1
-    print("\nSetting Robot 0 battery to 1...")
-    
-    # Move should work, battery goes to 0
-    state, reward, done = env.step(robot_id=0, action="move_down")
-    print(f"After Robot 0 move_down | Battery: {state['robots'][0]['battery']} | Position: {state['robots'][0]['position']} | Reward: {reward}")
-    
-    # Move should fail because battery is 0
-    state, reward, done = env.step(robot_id=0, action="move_down")
-    print(f"After Robot 0 dead move attempt | Battery: {state['robots'][0]['battery']} | Position: {state['robots'][0]['position']} | Reward: {reward}")
-
-    # Manually place dead robot on charging station and test recharge
-    env.robots[0]["position"] = (0, 0)
-    # Simulate a wait/pickup step to trigger recharge at the station
-    state, reward, done = env.step(robot_id=0, action="wait")
-    print(f"After Robot 0 placed on station (0,0) | Battery: {state['robots'][0]['battery']} | Position: {state['robots'][0]['position']} | Reward: {reward}")
