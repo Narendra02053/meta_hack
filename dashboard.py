@@ -186,6 +186,25 @@ with task_section:
         })
     st.dataframe(pd.DataFrame(task_list), use_container_width=True, hide_index=True)
 
+    # STEP 5 — Add Episode Summary Panel to Dashboard
+    st.header("📊 Episode Summary")
+    completed_tasks = sum(1 for t in env.tasks if t["completed"])
+    total_tasks = len(env.tasks)
+    
+    col_e1, col_e2, col_e3 = st.columns(3)
+    col_e1.metric("Tasks Completed", f"{completed_tasks}/{total_tasks}")
+    col_e2.metric("Total Steps", env.step_count)
+    col_e3.metric("Total Reward", env.total_reward)
+
+    # STEP 7 — Optional Efficiency Score
+    if env.step_count > 0:
+        efficiency = completed_tasks / env.step_count
+        st.metric("Efficiency Score", round(efficiency, 2))
+
+    # STEP 6 — Add Success Message
+    if completed_tasks == total_tasks:
+        st.success("🎉 All Tasks Completed Successfully!")
+
 # Lock Event Feed
 with event_section:
     st.header("📡 Live Event Feed")
@@ -208,4 +227,5 @@ with chart_container:
                 st.info("Loading telemetry...")
 
 if completed_tasks == total_tasks:
-    st.success("Mission Accomplished: All tasks fulfilled!")
+    # We already showed the success message inside the container, but the balloons are nice
+    st.balloons()

@@ -6,6 +6,9 @@ class WarehouseEnv:
         self.grid_size = (5, 5)
         # 1. Add Recharge Station locations
         self.charging_stations = [(0, 0), (4, 4)]
+        self.total_reward = 0
+        self.step_count = 0
+        self.tasks_completed = 0
         self.reset()
 
     def initialize_tasks(self):
@@ -35,6 +38,9 @@ class WarehouseEnv:
 
         self.tasks = self.initialize_tasks()
         self.logs = ["System reset. Agents initialized."]
+        self.total_reward = 0
+        self.step_count = 0
+        self.tasks_completed = 0
 
         return self.get_state()
 
@@ -172,6 +178,7 @@ class WarehouseEnv:
                     robot["carrying"] = False
                     active_task["completed"] = True
                     reward += 50
+                    self.tasks_completed += 1
                     self.logs.append(f"Agent {robot['id']+1} completed Task #{active_task['id']}.")
 
         if robot["position"] in self.charging_stations:
@@ -180,10 +187,13 @@ class WarehouseEnv:
                 reward += 5
                 self.logs.append(f"Agent {robot['id']+1} recharged battery.")
 
-        completed_tasks = sum(1 for t in self.tasks if t["completed"])
-        if completed_tasks == len(self.tasks):
-            done = True
+        self.step_count += 1
+        self.total_reward += reward
+
+        if all(task["completed"] for task in self.tasks):
             reward += 100
+            self.total_reward += 100
+            done = True
             self.logs.append("All warehouse tasks fulfilled!")
 
         return self.get_state(), reward, done
