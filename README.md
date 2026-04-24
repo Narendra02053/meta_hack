@@ -27,6 +27,9 @@ https://huggingface.co/spaces/kottakur/warehouse-priority-env
 ### Google Colab Notebook
 https://colab.research.google.com/drive/1tVkSTpQe7pAhafIc_QOOcQ1y4uMdnK2o
 
+### Hugging Face Blog
+https://huggingface.co/spaces/kottakur/warehouse-priority-env/discussions/1
+
 ### GitHub Repository
 https://github.com/Narendra02053/meta_hack
 
