@@ -14,87 +14,85 @@ tags:
 - intelligent-agents
 ---
 
-# 🏭 Multi-Agent Warehouse Intelligence Simulation
+# Multi-Agent Warehouse Intelligence Simulation
 
-[![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Space-blue)](https://huggingface.co/spaces/kottakur/warehouse-priority-env)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+This project is a high-performance simulation for evaluating multi-agent coordination in dynamic warehouse environments. It includes a Streamlit-based dashboard for visualization and a FastAPI-based backend for programmatic interaction.
 
-A high-performance, real-time simulation for evaluating multi-agent coordination in dynamic warehouse environments. Built with **Streamlit** for visualization and **FastAPI** for programmatic interaction.
+## Deployment Links
 
----
+### Hugging Face Space
+https://huggingface.co/spaces/kottakur/warehouse-priority-env
 
-## 🚀 Key Features
+### Google Colab Notebook
+https://colab.research.google.com/drive/1tVkSTpQe7pAhafIc_QOOcQ1y4uMdnK2o
 
-### 🧠 Intelligent Coordination
-- **Decentralized Intelligence**: Agents independently evaluate the environment to determine optimal actions.
-- **Priority-Aware Scheduling**: Tasks are ranked by priority (**HIGH**, **NORMAL**, **LOW**).
-- **Deadline Sensitivity**: Automated rerouting based on task expiration urgency.
-
-### 🚦 Realistic Navigation
-- **Obstacle Avoidance**: Agents navigate around static shelves and restricted zones (⬛).
-- **Traffic Congestion Control**: Real-time detection of robot density with dynamic slowdown (🟠).
-- **Energy Management**: Automatic battery tracking and prioritization of charging stations (🔋).
-
-### 📊 Observability & Control
-- **Live Telemetry**: Real-time fleet tracking and task fulfillment monitoring.
-- **Performance Analytics**: Automated "Efficiency Score" and reward history visualization.
-- **Dynamic Injection**: Ability to inject emergency tasks during live simulations.
+### GitHub Repository
+https://github.com/Narendra02053/meta_hack
 
 ---
 
-## 🛠️ Getting Started
+## Key Features
 
-### 1. Installation
+### Coordination and Intelligence
+- Decentralized Intelligence: Each agent evaluates its own actions independently.
+- Priority-Aware Scheduling: Tasks are ranked by importance (High, Normal, Low).
+- Deadline Sensitivity: Agents prioritize tasks based on remaining time to failure.
+
+### Navigation and Constraints
+- Obstacle Avoidance: Automated routing around static warehouse shelves and restricted zones.
+- Traffic Congestion: Real-time detection of robot density with dynamic slowdown and rerouting.
+- Energy Management: Automated battery level tracking and charging station prioritization.
+
+### Analytics and Control
+- Real-time Telemetry: Live monitoring of robot positions and task status.
+- Performance Metrics: Efficiency scores and reward history tracking.
+- Dynamic Tasking: Ability to inject emergency tasks into the simulation in real-time.
+
+---
+
+## Installation and Setup
+
+### 1. Install Dependencies
 ```bash
 git clone https://github.com/Narendra02053/meta_hack.git
 cd meta_hack
 pip install -r requirements.txt
 ```
 
-### 2. Running the System
-The project consists of two main components:
-
-#### **A. Run the Dashboard (Streamlit)**
-Visualizes the warehouse grid, agent movements, and performance metrics.
+### 2. Run the Dashboard
+The dashboard provides a visual interface for the simulation.
 ```bash
 streamlit run dashboard.py
 ```
 
-#### **B. Run the Backend API (FastAPI)**
-Exposes the environment for programmatic control and testing.
+### 3. Run the Backend API
+The FastAPI server allows for programmatic control.
 ```bash
 uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 
 ---
 
-## 📡 API Endpoints
+## API Documentation
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
-| `/state` | `GET` | Retrieve the current grid, agent, and task states. |
-| `/step` | `POST` | Execute an action for a specific robot. |
-| `/reset` | `POST` | Reset the environment to initial conditions. |
-| `/add_task` | `POST` | Inject a new randomized task into the grid. |
+| /state | GET | Get current grid, robot, and task state. |
+| /step | POST | Execute an action for a specific robot. |
+| /reset | POST | Reset the environment. |
+| /add_task | POST | Add a new random task to the grid. |
 
 ---
 
-## 🧱 Project Structure
-```text
-.
-├── dashboard.py         # Main UI & Visualization Engine
-├── warehouse_env.py     # Simulation Core & Multi-Agent Logic
-├── server/
-│   └── app.py           # FastAPI REST Interface
-├── reward_history.json  # Persistence for performance metrics
-├── requirements.txt     # System dependencies
-└── README.md            # Project documentation
-```
+## Project Structure
+- dashboard.py: Streamlit visualization engine.
+- warehouse_env.py: Core multi-agent simulation logic.
+- server/app.py: FastAPI REST interface.
+- reward_history.json: Persistence for episode performance.
 
 ---
 
-## 👤 Author
-**Narendra**  
-[nn7116580@gmail.com](mailto:nn7116580@gmail.com)  
+## Contact
+Narendra (nn7116580@gmail.com)
 
-Developed for the **Meta Hackathon**.
+Developed for the Meta Hackathon.
