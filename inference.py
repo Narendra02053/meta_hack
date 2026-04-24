@@ -14,16 +14,22 @@ SERVER_URL = os.getenv("SERVER_URL", "http://localhost:7860")
 API_BASE_URL = os.getenv("API_BASE_URL")
 API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
 
-# Initialize OpenAI Client to use the provided proxy
+# Initialize OpenAI Client safely
+client = None
 if API_BASE_URL and API_KEY:
-    print(f"Using LiteLLM Proxy: {API_BASE_URL}")
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    try:
+        print(f"Using LiteLLM Proxy: {API_BASE_URL}")
+        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    except Exception as e:
+        print(f"Failed to initialize OpenAI client with Proxy: {e}")
 elif API_KEY:
-    print("Using Standard OpenAI API (Direct)")
-    client = OpenAI(api_key=API_KEY)
+    try:
+        print("Using Standard OpenAI API (Direct)")
+        client = OpenAI(api_key=API_KEY)
+    except Exception as e:
+        print(f"Failed to initialize OpenAI client: {e}")
 else:
     print("No API Key found. Falling back to SmartHeuristic logic.")
-    client = None
 
 # Shared heuristic agent instance
 _heuristic_agent = SmartAgent()
