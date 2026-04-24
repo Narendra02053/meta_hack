@@ -1,122 +1,94 @@
 ---
-title: Warehouse Priority Env
-emoji: 📦
-colorFrom: blue
-colorTo: indigo
-sdk: docker
+title: Multi-Agent Warehouse Intelligence
+emoji: 🤖
+colorFrom: cyan
+colorTo: blue
+sdk: streamlit
 app_port: 7860
 pinned: false
 tags:
-- openenv
-- supply-chain
-- reinforcement-learning
 - logistics
+- multi-agent
+- simulation
+- warehouse
+- intelligent-agents
 ---
 
-# 📦 Warehouse Priority Environment (OpenEnv)
+# 🏭 Multi-Agent Warehouse Intelligence Simulation
 
 [![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Space-blue)](https://huggingface.co/spaces/kottakur/warehouse-priority-env)
-[![OpenEnv Spec](https://img.shields.io/badge/OpenEnv-Compliant-green)](https://github.com/OpenEnv/spec)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A high-fidelity logistics simulation for evaluating AI agents on real-world warehouse operations, including **Inventory Management**, **Order Fulfillment**, **Deadline Prioritization**, and **Returns Processing**.
-
----
-
-## 🚀 Motivation
-Modern e-commerce requires highly efficient warehouse systems that can handle thousands of items, prioritize urgent shipments, and manage reverse logistics (returns) seamlessly. This environment provides a platform to train and evaluate agents on these complex, multi-objective tasks.
+A high-performance, real-time simulation for evaluating multi-agent coordination in dynamic warehouse environments. Built with **Streamlit** for visualization and **FastAPI** for programmatic interaction.
 
 ---
 
-## 🧠 Environment Design
+## 🚀 Key Features
 
-### 🔭 Observation Space
-The state is exposed via a typed Pydantic `Observation` model:
-- `inventory` (Dict[str, int]): Current stock levels for all products.
-- `current_order` (Optional[Dict[str, int]]): Items and quantities required for the active order.
-- `current_deadline` (Optional[int]): Remaining steps before the active order is considered late.
-- `priority` (str): `"Normal"` or `"Urgent"` (escalates when deadline ≤ 3).
-- `returns_pending` (List[str]): List of items waiting to be processed from customer returns.
-- `inspection_pending` (List[str]): List of items in the inspection bay waiting to be restocked.
-- `packed_orders` (int): Count of orders picked and packed, ready for shipping.
-- `shipped_orders` (int): Count of orders successfully dispatched.
-- `time_left` (int): Global episode time remaining.
+### 🧠 Intelligent Coordination
+- **Decentralized Intelligence**: Agents independently evaluate the environment to determine optimal actions.
+- **Priority-Aware Scheduling**: Tasks are ranked by priority (**HIGH**, **NORMAL**, **LOW**).
+- **Deadline Sensitivity**: Automated rerouting based on task expiration urgency.
 
-### 🎮 Action Space
-The agent can execute following actions:
-| Action | Description | Reward Logic |
-| :--- | :--- | :--- |
-| `pick_<item>` | Pick a specific item from `inventory` for the current order. | +0.2 (Success), -0.3 (Fail) |
-| `pack_order` | Pack the current order once all items are picked. | +0.3 (Success), -0.3 (Fail) |
-| `ship_order` | Ship the latest packed order. | +0.5 to +1.0 (Depends on Deadline) |
-| `inspect_return` | Process an item from `returns_pending` to `inspection_pending`. | +0.2 (Success), -0.2 (Fail) |
-| `restock_<item>` | Move an item from `inspection_pending` to `inventory`. | +0.3 (Success), -0.2 (Fail) |
-| `wait` | Skip a turn (consumes time). | -0.1 penalty |
+### 🚦 Realistic Navigation
+- **Obstacle Avoidance**: Agents navigate around static shelves and restricted zones (⬛).
+- **Traffic Congestion Control**: Real-time detection of robot density with dynamic slowdown (🟠).
+- **Energy Management**: Automatic battery tracking and prioritization of charging stations (🔋).
+
+### 📊 Observability & Control
+- **Live Telemetry**: Real-time fleet tracking and task fulfillment monitoring.
+- **Performance Analytics**: Automated "Efficiency Score" and reward history visualization.
+- **Dynamic Injection**: Ability to inject emergency tasks during live simulations.
 
 ---
 
-## 🎯 Task Scenarios & Baseline Scores
+## 🛠️ Getting Started
 
-| Task ID | Difficulty | Orders | Time | Description | **Baseline Score** |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Easy** | 🟢 Easy | 3 | 20 | Small inventory, focus on basic flow. | **0.95+** |
-| **Medium**| 🟡 Medium | 6 | 30 | Adds returns processing and multitasking. | **0.95+** |
-| **Hard**  | 🔴 Hard | 10 | 40 | High volume, tight deadlines, complex returns. | **0.95+** |
-
----
-
-## 🚦 Getting Started
-
-### 1. Local Installation
+### 1. Installation
 ```bash
 git clone https://github.com/Narendra02053/meta_hack.git
 cd meta_hack
-python -m venv venv
-source venv/bin/activate  # venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
 
-### 2. Run the Server
+### 2. Running the System
+The project consists of two main components:
+
+#### **A. Run the Dashboard (Streamlit)**
+Visualizes the warehouse grid, agent movements, and performance metrics.
+```bash
+streamlit run dashboard.py
+```
+
+#### **B. Run the Backend API (FastAPI)**
+Exposes the environment for programmatic control and testing.
 ```bash
 uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 
-### 3. Run Baseline Inference
-```bash
-# Uses the built-in SmartAgent (Reproducible Baseline)
-python inference.py
-```
-
-To run with an LLM (e.g., GPT-4), set your API key:
-```bash
-export OPENAI_API_KEY="your-key"
-python inference.py
-```
-
 ---
 
-## 📐 OpenEnv Specification Compliance
-- ✅ **Typed Models**: Full Pydantic schemas for `Observation`, `Action`, and `StepResponse`.
-- ✅ **Standard API**: Implements `/reset`, `/step`, and `/state` endpoints.
-- ✅ **Configuration**: Guided by `openenv.yaml` at the root.
-- ✅ **Reproducibility**: `inference.py` ensures consistent baseline evaluation.
-- ✅ **Containerized**: Production-ready `Dockerfile` for Hugging Face Spaces.
+## 📡 API Endpoints
+
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/state` | `GET` | Retrieve the current grid, agent, and task states. |
+| `/step` | `POST` | Execute an action for a specific robot. |
+| `/reset` | `POST` | Reset the environment to initial conditions. |
+| `/add_task` | `POST` | Inject a new randomized task into the grid. |
 
 ---
 
 ## 🧱 Project Structure
 ```text
 .
+├── dashboard.py         # Main UI & Visualization Engine
+├── warehouse_env.py     # Simulation Core & Multi-Agent Logic
 ├── server/
-│   ├── app.py          # FastAPI Server & Routes
-│   ├── environment.py  # Warehouse Core Logic
-│   ├── schema.py       # Pydantic Typing (Action/Obs)
-│   ├── grader.py       # Deterministic Scorer
-│   ├── model.py        # SmartAgent Heuristics
-│   └── tasks.py        # Task Configurations
-├── openenv.yaml        # Spec Metadata
-├── inference.py        # Baseline Inference Client
-├── Dockerfile          # Container Config
-└── README.md           # Documentation
+│   └── app.py           # FastAPI REST Interface
+├── reward_history.json  # Persistence for performance metrics
+├── requirements.txt     # System dependencies
+└── README.md            # Project documentation
 ```
 
 ---
@@ -125,4 +97,4 @@ python inference.py
 **Narendra**  
 [nn7116580@gmail.com](mailto:nn7116580@gmail.com)  
 
-Developed for the **OpenEnv Hackathon**.
+Developed for the **Meta Hackathon**.
