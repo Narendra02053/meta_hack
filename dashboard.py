@@ -11,9 +11,14 @@ from warehouse_env import WarehouseEnv
 st.set_page_config(page_title="Warehouse AI Dashboard", layout="wide")
 
 # Initialize the environment in session state
-if 'env' not in st.session_state:
+if "env" not in st.session_state:
     st.session_state.env = WarehouseEnv()
-    st.session_state.state = st.session_state.env.get_state()
+
+# Use the env variable properly
+env = st.session_state.env
+
+if "state" not in st.session_state:
+    st.session_state.state = env.get_state()
 
 st.title("🏭 Multi-Agent Warehouse Environment")
 
@@ -22,34 +27,37 @@ st.sidebar.header("Controls")
 
 if st.sidebar.button("Run Step"):
     # Run a random step for both robots
-    for robot_id in range(len(st.session_state.env.robots)):
-        action = st.session_state.env.intelligent_action(robot_id)
-        st.session_state.state, reward, done = st.session_state.env.step(robot_id, action)
+    for robot_id in range(len(env.robots)):
+        action = env.intelligent_action(robot_id)
+        st.session_state.state, reward, done = env.step(robot_id, action)
         robot = st.session_state.state["robots"][robot_id]
         print(robot["position"])
+    st.rerun()
 
 if st.sidebar.button("Run Multiple Steps (10)"):
     for _ in range(10):
-        for robot_id in range(len(st.session_state.env.robots)):
-            action = st.session_state.env.intelligent_action(robot_id)
-            st.session_state.state, reward, done = st.session_state.env.step(robot_id, action)
+        for robot_id in range(len(env.robots)):
+            action = env.intelligent_action(robot_id)
+            st.session_state.state, reward, done = env.step(robot_id, action)
             robot = st.session_state.state["robots"][robot_id]
             print(robot["position"])
         time.sleep(0.1)
+    st.rerun()
 
 if st.sidebar.button("Reset Environment"):
-    st.session_state.env = WarehouseEnv()
-    st.session_state.state = st.session_state.env.get_state()
+    env.reset()
+    st.session_state.state = env.get_state()
+    st.rerun()
 
 # --- 1. Display Warehouse Grid ---
 st.header("1. Warehouse Grid")
 
 # Build the grid (5x5)
-grid_size = st.session_state.env.grid_size
+grid_size = env.grid_size
 grid = [["" for _ in range(grid_size[1])] for _ in range(grid_size[0])]
 
 # Highlight Charging Stations: Mark grid cells (0,0), (4,4)
-for cx, cy in st.session_state.env.charging_stations:
+for cx, cy in env.charging_stations:
     grid[cx][cy] += "C "
 
 # Mark Tasks (P and D)
