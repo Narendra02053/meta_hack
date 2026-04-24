@@ -4,6 +4,7 @@ emoji: 🤖
 colorFrom: blue
 colorTo: blue
 sdk: streamlit
+app_file: dashboard.py
 app_port: 7860
 pinned: false
 tags:
