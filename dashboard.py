@@ -60,46 +60,38 @@ if st.session_state.run_steps > 0:
     st.rerun()
 
 
-# --- 7. Optimize HTML Rendering ---
-def render_grid(env):
+# --- 1. Replace HTML Grid Rendering ---
+def render_grid_dataframe(env):
     state = env.get_state()
     grid_size = env.grid_size
-    grid = [["" for _ in range(grid_size[1])] for _ in range(grid_size[0])]
+    grid = [["-" for _ in range(grid_size[1])] for _ in range(grid_size[0])]
 
+    # Charging stations
     for cx, cy in env.charging_stations:
-        grid[cx][cy] += "C "
+        grid[cx][cy] = "C"
 
+    # Tasks
     for task in state["tasks"]:
         if not task["completed"]:
             px, py = task["pickup"]
-            grid[px][py] += f"P{task['id']} "
+            grid[px][py] = f"P{task['id']}"
             dx, dy = task["drop"]
-            grid[dx][dy] += f"D{task['id']} "
+            grid[dx][dy] = f"D{task['id']}"
 
+    # Robots
     for robot in state["robots"]:
         rx, ry = robot["position"]
-        grid[rx][ry] += f"R{robot['id']+1} "
+        grid[rx][ry] = f"R{robot['id']+1}"
 
-    html_rows = []
-    html_rows.append("<table style='width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #ccc; font-size: 20px;'>")
-    for i in range(grid_size[0]):
-        html_rows.append("<tr>")
-        for j in range(grid_size[1]):
-            cell_val = grid[i][j].strip()
-            if cell_val == "":
-                cell_val = "-"
-            html_rows.append(f"<td style='border: 1px solid #ccc; padding: 20px; font-weight: bold;'>{cell_val}</td>")
-        html_rows.append("</tr>")
-    html_rows.append("</table>")
-    return "".join(html_rows)
+    return grid
 
 # --- 4. Separate Simulation Logic From Rendering Logic ---
 st.header("1. Warehouse Grid")
 
-# 4. Use Persistent Grid Placeholder
-st.session_state.grid_placeholder.markdown(
-    render_grid(env),
-    unsafe_allow_html=True
+# 2. Render Using st.dataframe()
+st.session_state.grid_placeholder.dataframe(
+    render_grid_dataframe(env),
+    use_container_width=True
 )
 
 col1, col2 = st.columns(2)
