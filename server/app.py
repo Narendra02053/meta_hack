@@ -21,7 +21,7 @@ def root():
     return {
         "status": "ok",
         "message": "Warehouse Optimization API Active",
-        "system": "v2.0-Elite"
+        "system": "Elite-v2.5-Full-Sync"
     }
 
 @app.api_route("/reset", methods=["GET", "POST"])
