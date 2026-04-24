@@ -1,119 +1,167 @@
 ---
-title: Multi-Agent Warehouse Intelligence (MAWI)
-emoji: 🤖
-colorFrom: indigo
+title: Warehouse Priority Env
+emoji: 📦
+colorFrom: blue
 colorTo: indigo
 sdk: streamlit
 app_file: dashboard.py
 app_port: 7860
-pinned: true
+pinned: false
 tags:
-  - logistics
-  - multi-agent
-  - navigation
-  - automation
-  - smart-cities
+- openenv
+- multi-agent
+- warehouse
+- reinforcement-learning
+- logistics
 ---
 
-# 🏭 Multi-Agent Warehouse Intelligence (MAWI)
-### *Elite Autonomous Logistics & Pathfinding Simulation*
+# 📦 Multi-Agent Warehouse Intelligence System
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1hmpR4uRP3JKv2_xNEKLdOlbC5adH1zQ2#scrollTo=-zkX6pRrGma9)
-[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-yellow)](https://huggingface.co/spaces/kottakur/warehouse-priority-env)
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+A high-fidelity multi-agent warehouse simulation designed to evaluate intelligent robotic coordination under real-world logistics constraints such as deadlines, battery management, congestion, and obstacle navigation.
 
-## 📌 Executive Summary
-**MAWI** is a high-fidelity logistics simulation engine designed to evaluate decentralized multi-agent coordination within dynamic, constrained environments. Developed with a focus on real-world industrial constraints, the system integrates advanced pathfinding, congestion awareness, and priority-weighted scheduling to optimize fulfillment cycles.
-
-The platform provides a dual-layer interface: a **Streamlit Tactical Dashboard** for real-time visualization and a **FastAPI REST Backbone** for programmatic agent control and high-throughput evaluation.
+Developed for the **Meta PyTorch OpenEnv Hackathon Grand Finale**.
 
 ---
 
-## 🚀 Quick Links & Deployment
+# 🚀 Live Deployment
 
-*   **[Interactive Dashboard (Hugging Face)](https://huggingface.co/spaces/kottakur/warehouse-priority-env)**
-*   **[Technical Discussion Blog](https://huggingface.co/spaces/kottakur/warehouse-priority-env/discussions/1)**
-*   **[GitHub Source Code](https://github.com/Narendra02053/meta_hack)**
+🔗 **Hugging Face Space**  
+https://huggingface.co/spaces/kottakur/warehouse-priority-env  
 
-## 🧪 Google Colab Evaluation
-To run the benchmarks and verify the **0.97 scores** yourself, use our pre-configured evaluation environment:
+🔗 **Google Colab Notebook**  
+https://colab.research.google.com/drive/1hmpR4uRP3JKv2_xNEKLdOlbC5adH1zQ2#scrollTo=-zkX6pRrGma9 
 
-👉 **[Open Evaluation Notebook in Google Colab](https://colab.research.google.com/drive/1hmpR4uRP3JKv2_xNEKLdOlbC5adH1zQ2#scrollTo=-zkX6pRrGma9)**
+🔗 **GitHub Repository**  
+https://github.com/Narendra02053/meta_hack  
 
----
-
-## 📈 Performance Benchmarks (v2.5 Elite)
-
-The system is engineered for **90+ Performance Ratings** using an ultra-lean operational strategy that minimizes idling and maximizes time-efficiency bonuses.
-
-| Metric | Easy | Medium | Hard |
-| :--- | :--- | :--- | :--- |
-| **Efficiency Score** | **0.97** | **0.97** | **0.97** |
-| **Fulfillment Rate** | 100% | 100% | 100% |
-| **Avg. Cycle Time** | 3.3 steps/task | 3.8 steps/task | 2.9 steps/task |
-
-### **Optimization Rationale**
-- **Zero-Waste Pathing**: Agents utilize a strictly prioritized BFS (Breadth-First Search) protocol that treats time as the most expensive resource.
-- **Proactive Inventory Flow**: Implemented a predictive auto-restocking engine that maintains zero-latency inventory availability for high-demand SKUs.
-- **Dynamic Congestion Mitigation**: Real-time traffic density monitoring with automated rerouting to prevent gridlock in high-traffic corridors.
+📝 **Project Blog**  
+https://huggingface.co/spaces/kottakur/warehouse-priority-env/discussions/1
 
 ---
 
-## 🛠️ Core Architecture & Intelligence
+# 🏗️ System Architecture
 
-### 1. Navigation Engine
-- **BFS Pathfinding**: Mathematically optimal shortest-path calculation in grid-based environments.
-- **Collision Avoidance**: Predictive logic to avoid static obstacles (shelves) and dynamic obstacles (other agents).
-- **Traffic Density Tracking**: Heatmap-style detection of bottleneck areas with dynamic slowdown modifiers.
+This system follows a modular architecture consisting of:
 
-### 2. Decision Logic
-- **Decentralized Autonomy**: Each unit independently calculates its state-action vector based on localized and global telemetry.
-- **Priority-Weighted Heuristics**: Multi-objective optimization focusing on Task Priority (High/Normal/Low) and Deadline Criticality.
-- **Energy Conservation**: Automated state-switching to charging protocols when battery thresholds are breached.
+- **Streamlit Dashboard** — Real-time visualization
+- **FastAPI Backend** — Environment logic execution
+- **Multi-Agent Engine** — Robot intelligence logic
+- **Inference Pipeline** — Performance evaluation
+- **Google Colab** — Reproducible testing
 
 ---
 
-## 💻 Technical Stack
-- **Engine**: Python 3.11, Gymnasium-style Environment
-- **Visualization**: Streamlit (Elite Tactical UI with Glassmorphism)
-- **API Framework**: FastAPI (Asynchronous REST Backend)
-- **Logistics Algorithms**: BFS (Breadth-First Search), Decentralized Task Allocation
+# 🧠 Problem Statement
+
+Modern warehouse systems require autonomous robots to coordinate delivery operations efficiently while handling dynamic workloads.
+
+This project simulates:
+
+- Multi-robot coordination
+- Task prioritization
+- Deadline-driven scheduling
+- Battery-aware movement
+- Obstacle avoidance
+- Congestion handling
+- Dynamic emergency tasks
+
+The goal is to maximize delivery efficiency while minimizing delays and movement penalties.
 
 ---
 
-## 🛠️ Installation & Rapid Start
+# 🎯 Key Features
 
-### Development Environment Setup
-```bash
-# Clone the repository
-git clone https://github.com/Narendra02053/meta_hack.git
-cd meta_hack
+## 🤖 Multi-Agent Coordination
+Multiple robots operate simultaneously, sharing tasks while avoiding collisions.
 
-# Initialize environment & dependencies
-pip install -r requirements.txt
+## ⏱️ Deadline-Based Scheduling
+Tasks include time constraints requiring urgent delivery prioritization.
+
+## 🔋 Battery Management
+Robots automatically recharge when battery drops below threshold.
+
+## ⬛ Obstacle Navigation
+Static restricted zones simulate warehouse shelves.
+
+## 🚦 Traffic Congestion Handling
+Robots dynamically reroute to avoid bottlenecks.
+
+## 📦 Dynamic Task Injection
+Emergency tasks can be added during runtime.
+
+## 📊 Reward Tracking
+Performance evaluated using a reward-based scoring system.
+
+---
+
+# 📊 Performance Results
+
+The system was evaluated across multiple difficulty levels.
+
+## Final Scores
+
+- Easy → **0.97**
+- Medium → **0.97**
+- Hard → **0.97**
+
+These results demonstrate highly efficient multi-agent coordination and optimized logistics performance.
+
+---
+
+# 🖥️ Dashboard Preview
+
+The dashboard visualizes:
+
+- Robot positions
+- Active tasks
+- Pickup/drop locations
+- Reward progress
+- System state
+
+---
+
+# 🧪 Training & Evaluation Workflow
+
+The system follows a structured evaluation pipeline:
+
+1. Initialize warehouse environment  
+2. Assign tasks to robots  
+3. Execute movement logic  
+4. Track rewards and penalties  
+5. Evaluate performance metrics  
+6. Generate reward history
+
+Reproducible execution is supported through:
+
+- Google Colab notebook
+- FastAPI backend
+- Automated inference pipeline
+
+---
+
+# 📂 Project Structure
+
+```text
+meta_hack/
+│
+├── server/
+│   ├── app.py
+│   ├── environment.py
+│   ├── schema.py
+│   ├── grader.py
+│   ├── model.py
+│   └── tasks.py
+│
+├── warehouse_env.py
+├── dashboard.py
+├── inference.py
+├── requirements.txt
+│
+└── README.md
 ```
 
-### Execution Protocols
-- **Tactical Visualizer**: `streamlit run dashboard.py`
-- **Programmatic Server**: `python server/app.py`
-- **Benchmark Evaluator**: `python inference.py`
-
 ---
 
-## 📡 API Reference
-
-| Endpoint | Method | Payload | Description |
-| :--- | :--- | :--- | :--- |
-| `/state` | `GET` | N/A | Full environment telemetry (Grid, Robots, Tasks) |
-| `/step` | `POST` | `{"action": str}` | Execute agent action and receive updated observation |
-| `/reset` | `POST` | `{"difficulty": str}` | Re-initialize environment to specific complexity |
-| `/grader` | `GET` | N/A | Retrieve real-time performance and efficiency score |
-
----
-
-## 👨‍💻 Author & Acknowledgments
-**Narendra** | Elite Software Engineer & AI Architect
-[Email](mailto:nn7116580@gmail.com) | [GitHub](https://github.com/Narendra02053)
-
-*Developed for the **Meta Hackathon**, pushing the boundaries of autonomous logistics intelligence.*
+# 👨‍💻 Author
+**Narendra** (nn7116580@gmail.com)  
+Developed for the Meta Hackathon.
