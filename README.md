@@ -25,7 +25,7 @@ This project is a high-performance simulation for evaluating multi-agent coordin
 https://huggingface.co/spaces/kottakur/warehouse-priority-env
 
 ### Google Colab Notebook
-https://colab.research.google.com/drive/1tVkSTpQe7pAhafIc_QOOcQ1y4uMdnK2o
+https://colab.research.google.com/drive/1hmpR4uRP3JKv2_xNEKLdOlbC5adH1zQ2#scrollTo=-zkX6pRrGma9
 
 ### Hugging Face Blog
 https://huggingface.co/spaces/kottakur/warehouse-priority-env/discussions/1
