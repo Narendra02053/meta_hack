@@ -55,22 +55,24 @@ class WarehouseEnv:
         self.step_count = 0
         self.tasks_completed = 0
         
-        # STEP 6 — Optional Advanced Layout (Randomize obstacles)
-        # Uncomment below to enable randomization
-        # self.obstacles = []
-        # reserved = [(0,0), (4,4), (1,1), (3,0), (0,4)] # Spawn/Pickup/Drop points
-        # while len(self.obstacles) < 5:
-        #     obs = (random.randint(0,4), random.randint(0,4))
-        #     if obs not in reserved and obs not in self.obstacles:
-        #         self.obstacles.append(obs)
-
         return self.get_state()
 
     def get_state(self):
+        # STEP 1 & 2 — Track Robot Density & Congestion Detection
+        congestion_zones = []
+        robot_positions = [r["position"] for r in self.robots]
+        for i in range(len(robot_positions)):
+            for j in range(i + 1, len(robot_positions)):
+                p1, p2 = robot_positions[i], robot_positions[j]
+                if abs(p1[0] - p2[0]) + abs(p1[1] - p2[1]) <= 1:
+                    if p1 not in congestion_zones: congestion_zones.append(p1)
+                    if p2 not in congestion_zones: congestion_zones.append(p2)
+
         state = {
             "robots": self.robots,
             "tasks": self.tasks,
             "obstacles": self.obstacles,
+            "congestion_zones": congestion_zones,
             "logs": self.logs[-5:] # Return last 5 logs
         }
         return state
@@ -86,13 +88,11 @@ class WarehouseEnv:
         target = None
         action_at_target = "wait"
 
-        # 3. If battery low (<20), move to nearest charging station
         if robot["battery"] < 20:
             nearest_station = min(self.charging_stations, key=lambda s: abs(s[0] - rx) + abs(s[1] - ry))
             target = nearest_station
             action_at_target = "wait"
         else:
-            # STEP 3 — Implement Intelligent Task Selection
             active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"] and not t["failed"]), None)
             
             if not active_task and not robot["carrying"]:
@@ -119,32 +119,22 @@ class WarehouseEnv:
             else:
                 return "wait"
 
-        # STEP 4 — Improve Intelligent Navigation (Obstacle-Aware)
+        # STEP 5 — Encourage Rerouting (Congestion-Aware)
         if target:
             tx, ty = target
             if rx == tx and ry == ty:
                 return action_at_target
                 
-            preferred_moves = []
-            if rx < tx: preferred_moves.append("move_down")
-            if rx > tx: preferred_moves.append("move_up")
-            if ry < ty: preferred_moves.append("move_right")
-            if ry > ty: preferred_moves.append("move_left")
+            robot_positions = [r["position"] for r in self.robots]
             
-            robot_positions = [r["position"] for r in self.robots if r["id"] != robot_id]
-            
-            # Try preferred moves first
-            for move in preferred_moves:
-                nx, ny = rx, ry
-                if move == "move_down": nx += 1
-                elif move == "move_up": nx -= 1
-                elif move == "move_right": ny += 1
-                elif move == "move_left": ny -= 1
-                
-                if (nx, ny) not in robot_positions and (nx, ny) not in self.obstacles:
-                    return move
-            
-            # If preferred moves blocked, try ANY valid move
+            def get_congestion_score(pos):
+                score = 0
+                for rp in robot_positions:
+                    if abs(pos[0] - rp[0]) + abs(pos[1] - rp[1]) <= 1:
+                        score += 1
+                return score
+
+            possible_moves = []
             for move in ["move_up", "move_down", "move_left", "move_right"]:
                 nx, ny = rx, ry
                 if move == "move_up": nx -= 1
@@ -153,8 +143,15 @@ class WarehouseEnv:
                 elif move == "move_right": ny += 1
                 
                 if 0 <= nx < self.grid_size[0] and 0 <= ny < self.grid_size[1]:
-                    if (nx, ny) not in robot_positions and (nx, ny) not in self.obstacles:
-                        return move
+                    if (nx, ny) not in [r["position"] for r in self.robots if r["id"] != robot_id] and (nx, ny) not in self.obstacles:
+                        dist = abs(nx - tx) + abs(ny - ty)
+                        cong = get_congestion_score((nx, ny))
+                        possible_moves.append((move, dist, cong))
+            
+            if possible_moves:
+                # Sort by distance (ascending) and congestion (ascending)
+                possible_moves.sort(key=lambda x: (x[1], x[2]))
+                return possible_moves[0][0]
             
             return "wait"
 
@@ -178,6 +175,16 @@ class WarehouseEnv:
 
         active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"] and not t["failed"]), None)
 
+        # STEP 3 & 6 — Apply Movement Slowdown & Congestion Reward Penalty
+        robot_positions = [r["position"] for r in self.robots]
+        rx, ry = robot["position"]
+        is_congested = any(abs(rx - rp[0]) + abs(ry - rp[1]) <= 1 for idx, rp in enumerate(robot_positions) if idx != robot_id)
+
+        if is_congested and action in ["move_up", "move_down", "move_left", "move_right"] and random.random() < 0.5:
+            action = "wait"
+            reward -= 2
+            self.logs.append(f"Agent {robot['id']+1} slowed by traffic.")
+
         if action in ["move_up", "move_down", "move_left", "move_right"]:
             if robot["battery"] <= 0:
                 reward -= 10
@@ -199,7 +206,6 @@ class WarehouseEnv:
 
                 nx, ny = robot["position"]
                 
-                # STEP 2 & 5 — Modify Movement Logic & Collision Penalty
                 if (nx, ny) in self.obstacles:
                     robot["position"] = previous_position
                     reward -= 5
@@ -208,10 +214,14 @@ class WarehouseEnv:
                     robot["position"] = previous_position
                     reward -= 5
                 else:
-                    robot_positions = [r["position"] for r in self.robots]
-                    if len(robot_positions) != len(set(robot_positions)):
+                    new_robot_positions = [r["position"] for r in self.robots]
+                    if len(new_robot_positions) != len(set(new_robot_positions)):
                         robot["position"] = previous_position
                         reward -= 20
+                    
+                    # Penalty for moving into congested cell
+                    if any(abs(nx - rp[0]) + abs(ny - rp[1]) <= 1 for idx, rp in enumerate(new_robot_positions) if idx != robot_id):
+                        reward -= 2
 
                 if robot["battery"] <= 0:
                     reward -= 10
@@ -257,7 +267,6 @@ class WarehouseEnv:
     def add_random_task(self):
         new_id = len(self.tasks)
         
-        # Ensure task points are not in obstacles
         def get_valid_pos():
             while True:
                 pos = (random.randint(0,4), random.randint(0,4))

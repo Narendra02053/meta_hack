@@ -167,6 +167,9 @@ def render_grid(env):
     for ox, oy in state.get("obstacles", []):
         grid[ox][oy] = "⬛"
 
+    for cx, cy in state.get("congestion_zones", []):
+        grid[cx][cy] = "🟠"
+
     for robot in state["robots"]:
         rx, ry = robot["position"]
         grid[rx][ry] = f"🤖{robot['id']+1}"
