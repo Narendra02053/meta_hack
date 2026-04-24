@@ -1,4 +1,5 @@
 import streamlit as st
+import time
 import pandas as pd
 import json
 import matplotlib.pyplot as plt
@@ -24,19 +25,21 @@ if st.sidebar.button("Run Step"):
     for robot_id in range(len(st.session_state.env.robots)):
         action = st.session_state.env.intelligent_action(robot_id)
         st.session_state.state, reward, done = st.session_state.env.step(robot_id, action)
-    st.rerun()
+        robot = st.session_state.state["robots"][robot_id]
+        print(robot["position"])
 
 if st.sidebar.button("Run Multiple Steps (10)"):
     for _ in range(10):
         for robot_id in range(len(st.session_state.env.robots)):
             action = st.session_state.env.intelligent_action(robot_id)
             st.session_state.state, reward, done = st.session_state.env.step(robot_id, action)
-    st.rerun()
+            robot = st.session_state.state["robots"][robot_id]
+            print(robot["position"])
+        time.sleep(0.1)
 
 if st.sidebar.button("Reset Environment"):
     st.session_state.env = WarehouseEnv()
     st.session_state.state = st.session_state.env.get_state()
-    st.rerun()
 
 # --- 1. Display Warehouse Grid ---
 st.header("1. Warehouse Grid")
