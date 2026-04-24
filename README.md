@@ -2,7 +2,7 @@
 title: Multi-Agent Warehouse Intelligence (MAWI)
 emoji: 🤖
 colorFrom: indigo
-colorTo: slate
+colorTo: indigo
 sdk: streamlit
 app_file: dashboard.py
 app_port: 7860
