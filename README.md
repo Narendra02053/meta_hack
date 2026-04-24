@@ -18,6 +18,7 @@ tags:
 # 🏭 Multi-Agent Warehouse Intelligence (MAWI)
 ### *Elite Autonomous Logistics & Pathfinding Simulation*
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1hmpR4uRP3JKv2_xNEKLdOlbC5adH1zQ2#scrollTo=-zkX6pRrGma9)
 [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-yellow)](https://huggingface.co/spaces/kottakur/warehouse-priority-env)
 [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
