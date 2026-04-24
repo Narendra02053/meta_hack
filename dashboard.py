@@ -1,16 +1,13 @@
 import streamlit as st
 import time
-import pandas as pd
 import json
 import matplotlib.pyplot as plt
 import os
 
 from warehouse_env import WarehouseEnv
 
-# Page configuration
 st.set_page_config(page_title="Warehouse AI Dashboard", layout="wide")
 
-# 1. Persist Environment Properly
 if "env" not in st.session_state:
     st.session_state.env = WarehouseEnv()
 
@@ -21,17 +18,14 @@ if "state" not in st.session_state:
 
 st.title("🏭 Multi-Agent Warehouse Environment")
 
-# --- Function to Render Grid ---
 def render_grid(env):
     state = env.get_state()
     grid_size = env.grid_size
     grid = [["" for _ in range(grid_size[1])] for _ in range(grid_size[0])]
 
-    # Highlight Charging Stations
     for cx, cy in env.charging_stations:
         grid[cx][cy] += "C "
 
-    # Mark Tasks (P and D)
     for task in state["tasks"]:
         if not task["completed"]:
             px, py = task["pickup"]
@@ -39,76 +33,62 @@ def render_grid(env):
             dx, dy = task["drop"]
             grid[dx][dy] += f"D{task['id']} "
 
-    # Mark Robots
     for robot in state["robots"]:
         rx, ry = robot["position"]
         grid[rx][ry] += f"R{robot['id']+1} "
 
-    # Clean up empty cells
+    html = "<table style='width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #ccc; font-size: 20px;'>"
     for i in range(grid_size[0]):
+        html += "<tr>"
         for j in range(grid_size[1]):
-            if grid[i][j] == "":
-                grid[i][j] = "-"
-            else:
-                grid[i][j] = grid[i][j].strip()
+            cell_val = grid[i][j].strip()
+            if cell_val == "":
+                cell_val = "-"
+            html += f"<td style='border: 1px solid #ccc; padding: 20px; font-weight: bold;'>{cell_val}</td>"
+        html += "</tr>"
+    html += "</table>"
+    return html
 
-    return pd.DataFrame(grid)
-
-# --- Layout ---
 st.sidebar.header("Controls")
 
-st.header("1. Warehouse Grid")
-# 7. Optimize Grid Rendering using st.empty container
-grid_placeholder = st.empty()
-grid_placeholder.write(render_grid(env))
-
 if st.sidebar.button("Run Step"):
-    # 5. Stabilize Position Rendering: position changes only once per step
     for robot_id in range(len(env.robots)):
         action = env.intelligent_action(robot_id)
         st.session_state.state, reward, done = env.step(robot_id, action)
-    st.rerun()
 
 if st.sidebar.button("Run Multiple Steps (10)"):
-    # 3. Fix Multiple Steps Execution (Update state inside loop but redraw UI once)
     for _ in range(10):
         for robot_id in range(len(env.robots)):
             action = env.intelligent_action(robot_id)
             st.session_state.state, reward, done = env.step(robot_id, action)
-        
-        # 4. Add Frame Control Delay
-        time.sleep(0.05)
-    
-    # Redraw grid only once after loop ends
-    st.rerun()
+    time.sleep(0.1)
 
 if st.sidebar.button("Reset Environment"):
-    # 6. Avoid Full Page Reset (no st.session_state.clear())
     env.reset()
     st.session_state.state = env.get_state()
     st.rerun()
 
-# Layout for Status
+st.header("1. Warehouse Grid")
+grid_container = st.empty()
+grid_container.markdown(render_grid(env), unsafe_allow_html=True)
+
 col1, col2 = st.columns(2)
 
 with col1:
     st.header("2. Robot Status")
     status_content = ""
     for robot in st.session_state.state["robots"]:
-        status_content += f"**Robot {robot['id']}** → {robot['position']} | Battery: {robot['battery']} | Carrying: {robot['carrying']}\n\n"
-    st.info(status_content)
+        status_content += f"**Robot {robot['id']}** → {robot['position']} | Battery: {robot['battery']} | Carrying: {robot['carrying']}<br><br>"
+    st.markdown(status_content, unsafe_allow_html=True)
 
 with col2:
     st.header("3. Task Status")
-    task_data = []
+    task_html = "<table style='width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #ccc;'><tr><th style='border: 1px solid #ccc; padding: 8px;'>Task ID</th><th style='border: 1px solid #ccc; padding: 8px;'>Pickup Location</th><th style='border: 1px solid #ccc; padding: 8px;'>Drop Location</th><th style='border: 1px solid #ccc; padding: 8px;'>Completed Status</th></tr>"
     for task in st.session_state.state["tasks"]:
-        task_data.append({
-            "Task ID": task["id"],
-            "Pickup Location": str(task["pickup"]),
-            "Drop Location": str(task["drop"]),
-            "Completed Status": "✅" if task["completed"] else "❌"
-        })
-    st.table(pd.DataFrame(task_data))
+        status = "✅" if task["completed"] else "❌"
+        task_html += f"<tr><td style='border: 1px solid #ccc; padding: 8px;'>{task['id']}</td><td style='border: 1px solid #ccc; padding: 8px;'>{task['pickup']}</td><td style='border: 1px solid #ccc; padding: 8px;'>{task['drop']}</td><td style='border: 1px solid #ccc; padding: 8px;'>{status}</td></tr>"
+    task_html += "</table>"
+    st.markdown(task_html, unsafe_allow_html=True)
 
 st.header("5. Reward History Graph")
 
