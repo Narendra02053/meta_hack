@@ -1,4 +1,10 @@
+import sys
+import os
 from fastapi import FastAPI
+
+# Add root directory to sys.path to resolve 'server' module imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from server.environment import WarehouseEnv
 from server.tasks import easy_task, medium_task, hard_task, TASK_MAP
 from server.grader import calculate_score
