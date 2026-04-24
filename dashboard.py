@@ -52,31 +52,24 @@ def render_grid(env):
 st.sidebar.header("Controls")
 
 if st.sidebar.button("Run Step"):
+
     for robot_id in range(len(env.robots)):
         action = env.intelligent_action(robot_id)
-        state, reward, done = env.step(robot_id, action)
+        env.step(robot_id, action)
 
     st.session_state.state = env.get_state()
 
 if st.sidebar.button("Run Multiple Steps (10)"):
-    st.session_state.run_steps = 10
 
-if "run_steps" not in st.session_state:
-    st.session_state.run_steps = 0
+    for _ in range(10):
 
-if st.session_state.run_steps > 0:
+        for robot_id in range(len(env.robots)):
+            action = env.intelligent_action(robot_id)
+            env.step(robot_id, action)
 
-    for robot_id in range(len(env.robots)):
-        action = env.intelligent_action(robot_id)
-        state, reward, done = env.step(robot_id, action)
+        time.sleep(0.12)
 
     st.session_state.state = env.get_state()
-
-    st.session_state.run_steps -= 1
-
-    time.sleep(0.15)
-
-    st.rerun()
 
 if st.sidebar.button("Reset Environment"):
     env.reset()
