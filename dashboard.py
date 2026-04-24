@@ -54,14 +54,19 @@ st.sidebar.header("Controls")
 if st.sidebar.button("Run Step"):
     for robot_id in range(len(env.robots)):
         action = env.intelligent_action(robot_id)
-        st.session_state.state, reward, done = env.step(robot_id, action)
+        state, reward, done = env.step(robot_id, action)
+
+    st.session_state.state = env.get_state()
 
 if st.sidebar.button("Run Multiple Steps (10)"):
     for _ in range(10):
         for robot_id in range(len(env.robots)):
             action = env.intelligent_action(robot_id)
-            st.session_state.state, reward, done = env.step(robot_id, action)
-    time.sleep(0.1)
+            state, reward, done = env.step(robot_id, action)
+
+        time.sleep(0.08)
+
+    st.session_state.state = env.get_state()
 
 if st.sidebar.button("Reset Environment"):
     env.reset()
@@ -69,8 +74,13 @@ if st.sidebar.button("Reset Environment"):
     st.rerun()
 
 st.header("1. Warehouse Grid")
-grid_container = st.empty()
-grid_container.markdown(render_grid(env), unsafe_allow_html=True)
+if "grid_container" not in st.session_state:
+    st.session_state.grid_container = st.empty()
+
+st.session_state.grid_container.markdown(
+    render_grid(env),
+    unsafe_allow_html=True
+)
 
 col1, col2 = st.columns(2)
 
