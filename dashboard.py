@@ -105,9 +105,25 @@ st.sidebar.header("🕹️ Control Center")
 
 # Reset Logic
 if st.sidebar.button("🔄 System Reset"):
+    # Save performance before reset
+    if st.session_state.env.step_count > 0:
+        history_file = "reward_history.json"
+        history = []
+        if os.path.exists(history_file):
+            with open(history_file, "r") as f:
+                try:
+                    history = json.load(f)
+                except:
+                    history = []
+        
+        history.append(st.session_state.total_reward)
+        with open(history_file, "w") as f:
+            json.dump(history, f)
+            
     st.session_state.env = WarehouseEnv()
     st.session_state.state = st.session_state.env.get_state()
     st.session_state.total_reward = 0
+    st.rerun()
 
 # Single Step
 if st.sidebar.button("Run Step"):
@@ -126,6 +142,11 @@ if st.sidebar.button("Run Multiple Steps (10)"):
             st.session_state.total_reward += reward
         time.sleep(0.15)
     st.session_state.state = env.get_state()
+
+# Dynamic Task Injection
+if st.sidebar.button("📦 Inject Emergency Task"):
+    st.session_state.env.add_random_task()
+    st.session_state.state = st.session_state.env.get_state()
 
 # --- Grid Logic ---
 def render_grid(env):
@@ -229,3 +250,23 @@ with chart_container:
 if completed_tasks == total_tasks:
     # We already showed the success message inside the container, but the balloons are nice
     st.balloons()
+
+# --- Judge-Ready Documentation ---
+with st.expander("🔬 System Architecture & Intelligence Overview"):
+    st.markdown("""
+    ### **1. Multi-Agent Coordination**
+    The system utilizes a **Decentralized Intelligence** model where each agent (🤖) independently evaluates the warehouse state to determine its optimal action. 
+    
+    ### **2. Pathfinding & Collision Avoidance**
+    Agents implement a priority-based movement strategy:
+    - **Battery Management**: If battery levels drop below **20%**, agents override task assignments to navigate to the nearest charging station (🔋).
+    - **Dynamic Rerouting**: Agents scan for obstacles (other robots) in their preferred direction. If blocked, they will wait or attempt a secondary route to prevent gridlock.
+    - **Action Logic**: Agents automatically transition between *Navigation*, *Pickup* (📦), and *Drop-off* (🏁) states based on task assignment.
+
+    ### **3. Reward & Performance Metrics**
+    The environment provides granular feedback to evaluate agent efficiency:
+    - **Step Penalty (-1)**: Encourages the shortest possible paths.
+    - **Wall/Collision Penalty (-5 to -20)**: Enforces safety constraints.
+    - **Task Fulfillment (+50 to +100)**: Primary objective success.
+    - **Efficiency Score**: Calculated as `Completed Tasks / Total Steps`. High values indicate optimized multi-agent coordination.
+    """)

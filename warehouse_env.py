@@ -198,6 +198,25 @@ class WarehouseEnv:
 
         return self.get_state(), reward, done
 
+    def add_random_task(self):
+        new_id = len(self.tasks)
+        pickup = (random.randint(0, self.grid_size[0]-1), random.randint(0, self.grid_size[1]-1))
+        drop = (random.randint(0, self.grid_size[0]-1), random.randint(0, self.grid_size[1]-1))
+        
+        # Ensure pickup and drop are not the same
+        while drop == pickup:
+            drop = (random.randint(0, self.grid_size[0]-1), random.randint(0, self.grid_size[1]-1))
+
+        self.tasks.append({
+            "id": new_id,
+            "pickup": pickup,
+            "drop": drop,
+            "assigned": None,
+            "completed": False
+        })
+        self.logs.append(f"New dynamic task #{new_id} spawned at {pickup}.")
+        return self.get_state()
+
 if __name__ == "__main__":
     env = WarehouseEnv()
     
