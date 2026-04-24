@@ -29,14 +29,14 @@ The platform provides a dual-layer interface: a **Streamlit Tactical Dashboard**
 
 ---
 
-## 🚀 Live Resources & Deployment
+## 🚀 Quick Links & Deployment
 
-| Resource | Link |
-| :--- | :--- |
-| **Hugging Face Space** | [Launch Interactive Dashboard](https://huggingface.co/spaces/kottakur/warehouse-priority-env) |
-| **Google Colab IDE** | [Access Evaluation Environment](https://colab.research.google.com/drive/1hmpR4uRP3JKv2_xNEKLdOlbC5adH1zQ2#scrollTo=-zkX6pRrGma9) |
-| **Technical Blog** | [Read Implementation Discussion](https://huggingface.co/spaces/kottakur/warehouse-priority-env/discussions/1) |
-| **Source Code** | [GitHub Repository](https://github.com/Narendra02053/meta_hack) |
+You can interact with the simulation or run evaluations using the links below:
+
+*   **[Interactive Dashboard (Hugging Face)](https://huggingface.co/spaces/kottakur/warehouse-priority-env)** - Live visualizer with real-time telemetry.
+*   **[Google Colab Evaluation Notebook](https://colab.research.google.com/drive/1hmpR4uRP3JKv2_xNEKLdOlbC5adH1zQ2#scrollTo=-zkX6pRrGma9)** - Complete environment for running scores and benchmarks.
+*   **[Hugging Face Discussion](https://huggingface.co/spaces/kottakur/warehouse-priority-env/discussions/1)** - Project background and implementation details.
+*   **[GitHub Repository](https://github.com/Narendra02053/meta_hack)** - Full source code and documentation.
 
 ---
 
