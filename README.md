@@ -1,7 +1,7 @@
 ---
 title: Multi-Agent Warehouse Intelligence
 emoji: 🤖
-colorFrom: cyan
+colorFrom: blue
 colorTo: blue
 sdk: streamlit
 app_port: 7860
