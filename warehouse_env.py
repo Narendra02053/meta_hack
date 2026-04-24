@@ -1,4 +1,5 @@
 import random
+from collections import deque
 
 class WarehouseEnv:
     def __init__(self):
@@ -45,8 +46,8 @@ class WarehouseEnv:
 
     def reset(self):
         self.robots = [
-            {"id": 0, "position": (0, 0), "battery": 100, "carrying": False},
-            {"id": 1, "position": (4, 4), "battery": 100, "carrying": False}
+            {"id": 0, "position": (0, 0), "battery": 100, "carrying": False, "path": [], "current_target": None},
+            {"id": 1, "position": (4, 4), "battery": 100, "carrying": False, "path": [], "current_target": None}
         ]
 
         self.tasks = self.initialize_tasks()
@@ -77,9 +78,27 @@ class WarehouseEnv:
         }
         return state
 
-    def sample_action(self, robot_id):
-        actions = ["move_up", "move_down", "move_left", "move_right", "pickup", "drop", "wait"]
-        return random.choice(actions)
+    def find_shortest_path(self, start, goal, obstacles, other_robots, grid_size):
+        """BFS-based shortest path planning."""
+        if start == goal:
+            return []
+            
+        queue = deque([(start, [])])
+        visited = {start}
+        
+        while queue:
+            (cx, cy), path = queue.popleft()
+            
+            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                nx, ny = cx + dx, cy + dy
+                
+                if 0 <= nx < grid_size[0] and 0 <= ny < grid_size[1]:
+                    if (nx, ny) == goal:
+                        return path + [(nx, ny)]
+                    if (nx, ny) not in visited and (nx, ny) not in obstacles and (nx, ny) not in other_robots:
+                        visited.add((nx, ny))
+                        queue.append(((nx, ny), path + [(nx, ny)]))
+        return []
 
     def intelligent_action(self, robot_id):
         robot = self.robots[robot_id]
@@ -88,6 +107,7 @@ class WarehouseEnv:
         target = None
         action_at_target = "wait"
 
+        # 1. Target Selection
         if robot["battery"] < 20:
             nearest_station = min(self.charging_stations, key=lambda s: abs(s[0] - rx) + abs(s[1] - ry))
             target = nearest_station
@@ -119,39 +139,38 @@ class WarehouseEnv:
             else:
                 return "wait"
 
-        # STEP 5 — Encourage Rerouting (Congestion-Aware)
+        # 2. Path Planning Logic (BFS)
         if target:
-            tx, ty = target
-            if rx == tx and ry == ty:
+            if rx == target[0] and ry == target[1]:
+                robot["path"] = []
+                robot["current_target"] = None
                 return action_at_target
-                
-            robot_positions = [r["position"] for r in self.robots]
             
-            def get_congestion_score(pos):
-                score = 0
-                for rp in robot_positions:
-                    if abs(pos[0] - rp[0]) + abs(pos[1] - rp[1]) <= 1:
-                        score += 1
-                return score
-
-            possible_moves = []
-            for move in ["move_up", "move_down", "move_left", "move_right"]:
-                nx, ny = rx, ry
-                if move == "move_up": nx -= 1
-                elif move == "move_down": nx += 1
-                elif move == "move_left": ny -= 1
-                elif move == "move_right": ny += 1
-                
-                if 0 <= nx < self.grid_size[0] and 0 <= ny < self.grid_size[1]:
-                    if (nx, ny) not in [r["position"] for r in self.robots if r["id"] != robot_id] and (nx, ny) not in self.obstacles:
-                        dist = abs(nx - tx) + abs(ny - ty)
-                        cong = get_congestion_score((nx, ny))
-                        possible_moves.append((move, dist, cong))
+            other_robots = [r["position"] for r in self.robots if r["id"] != robot_id]
             
-            if possible_moves:
-                # Sort by distance (ascending) and congestion (ascending)
-                possible_moves.sort(key=lambda x: (x[1], x[2]))
-                return possible_moves[0][0]
+            # Recalculate if target changed or path is empty or next step is blocked
+            recalculate = False
+            if robot["current_target"] != target:
+                recalculate = True
+            elif not robot["path"]:
+                recalculate = True
+            else:
+                next_step = robot["path"][0]
+                if next_step in self.obstacles or next_step in other_robots:
+                    recalculate = True
+            
+            if recalculate:
+                robot["current_target"] = target
+                robot["path"] = self.find_shortest_path((rx, ry), target, self.obstacles, other_robots, self.grid_size)
+            
+            if robot["path"]:
+                next_node = robot["path"].pop(0)
+                nx, ny = next_node
+                
+                if nx < rx: return "move_up"
+                if nx > rx: return "move_down"
+                if ny < ry: return "move_left"
+                if ny > ry: return "move_right"
             
             return "wait"
 
@@ -175,7 +194,7 @@ class WarehouseEnv:
 
         active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"] and not t["failed"]), None)
 
-        # STEP 3 & 6 — Apply Movement Slowdown & Congestion Reward Penalty
+        # Apply Movement Slowdown & Congestion Reward Penalty
         robot_positions = [r["position"] for r in self.robots]
         rx, ry = robot["position"]
         is_congested = any(abs(rx - rp[0]) + abs(ry - rp[1]) <= 1 for idx, rp in enumerate(robot_positions) if idx != robot_id)
@@ -232,7 +251,9 @@ class WarehouseEnv:
                 if robot["position"] == active_task["pickup"]:
                     robot["carrying"] = True
                     reward += 10
-                    self.logs.append(f"Agent {robot['id']+1} picked up Task #{active_task['id']}.")
+                    # STEP 5 — Shortest Path Bonus
+                    reward += 2
+                    self.logs.append(f"Agent {robot['id']+1} picked up Task #{active_task['id']} (Shortest Path Bonus).")
 
         elif action == "drop":
             if active_task and robot["carrying"]:
@@ -241,11 +262,14 @@ class WarehouseEnv:
                     active_task["completed"] = True
                     reward += 50
                     reward += 5 # Completion before deadline
+                    # STEP 5 — Shortest Path Bonus
+                    reward += 3
+                    
                     if active_task["priority"] == "HIGH": reward += 5
                     elif active_task["priority"] == "LOW": reward += 1
                         
                     self.tasks_completed += 1
-                    self.logs.append(f"Agent {robot['id']+1} completed Task #{active_task['id']}.")
+                    self.logs.append(f"Agent {robot['id']+1} completed Task #{active_task['id']} (Shortest Path Bonus).")
 
         if robot["position"] in self.charging_stations:
             if robot["battery"] < 100:

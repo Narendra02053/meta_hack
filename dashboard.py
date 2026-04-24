@@ -152,10 +152,16 @@ if st.sidebar.button("📦 Inject Emergency Task"):
 def render_grid(env):
     state = env.get_state()
     grid_size = env.grid_size
-    grid = [["·" for _ in range(grid_size[1])] for _ in range(grid_size[0])]
+    grid = [["▫" for _ in range(grid_size[1])] for _ in range(grid_size[0])]
 
     for cx, cy in env.charging_stations:
         grid[cx][cy] = "🔋"
+
+    # Visualize planned paths
+    for robot in state["robots"]:
+        for px, py in robot.get("path", []):
+            if grid[px][py] == "▫":
+                grid[px][py] = "·"
 
     for task in state["tasks"]:
         if not task["completed"]:
