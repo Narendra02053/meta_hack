@@ -7,3 +7,6 @@ requests
 httpx
 pydantic
 openai
+streamlit
+pandas
+matplotlib

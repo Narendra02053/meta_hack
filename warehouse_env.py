@@ -48,6 +48,53 @@ class WarehouseEnv:
         actions = ["move_up", "move_down", "move_left", "move_right", "pickup", "drop", "wait"]
         return random.choice(actions)
 
+    def intelligent_action(self, robot_id):
+        robot = self.robots[robot_id]
+        rx, ry = robot["position"]
+        
+        target = None
+        action_at_target = "wait"
+
+        # 3. If battery low (<20), move to nearest charging station
+        if robot["battery"] < 20:
+            nearest_station = min(self.charging_stations, key=lambda s: abs(s[0] - rx) + abs(s[1] - ry))
+            target = nearest_station
+            action_at_target = "wait"
+        else:
+            # Check for active task
+            active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"]), None)
+            
+            if active_task:
+                # 2. If robot carrying, move toward drop location
+                if robot["carrying"]:
+                    target = active_task["drop"]
+                    action_at_target = "drop"
+                # 1. If robot not carrying, move toward pickup location
+                else:
+                    target = active_task["pickup"]
+                    action_at_target = "pickup"
+            else:
+                return "wait"
+
+        # 4. Movement Strategy (step-by-step)
+        if target:
+            tx, ty = target
+            
+            # Perform action if already at target
+            if rx == tx and ry == ty:
+                return action_at_target
+                
+            if rx < tx:
+                return "move_down"
+            if rx > tx:
+                return "move_up"
+            if ry < ty:
+                return "move_right"
+            if ry > ty:
+                return "move_left"
+
+        return "wait"
+
     def step(self, robot_id, action):
         robot = self.robots[robot_id]
         reward = 0
