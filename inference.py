@@ -16,13 +16,13 @@ API_KEY = os.getenv("API_KEY") or os.getenv("OPENAI_API_KEY")
 
 # Initialize OpenAI Client to use the provided proxy
 if API_BASE_URL and API_KEY:
-    print(f"📡 Using LiteLLM Proxy: {API_BASE_URL}")
+    print(f"Using LiteLLM Proxy: {API_BASE_URL}")
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 elif API_KEY:
-    print("🔑 Using Standard OpenAI API (Direct)")
+    print("Using Standard OpenAI API (Direct)")
     client = OpenAI(api_key=API_KEY)
 else:
-    print("⚠️ No API Key found. Falling back to SmartHeuristic logic.")
+    print("No API Key found. Falling back to SmartHeuristic logic.")
     client = None
 
 # Shared heuristic agent instance
@@ -71,7 +71,7 @@ def get_llm_action(state: Dict[str, Any]) -> str:
 
 
 def run_episode(difficulty: str = "easy"):
-    print(f"\n🚀 Starting Task: {difficulty.upper()}")
+    print(f"\nStarting Task: {difficulty.upper()}")
     print(f"[START] task={difficulty}", flush=True)
 
     try:
@@ -115,12 +115,12 @@ def run_episode(difficulty: str = "easy"):
         normalized_score = (0.7 * (shipped / total_orders)) + (0.3 * (time_left / time_limit))
         normalized_score = max(0.01, min(0.99, normalized_score))
 
-        print(f"🏁 Task {difficulty} Finished. Final Score: {normalized_score:.2f}")
+        print(f"Task {difficulty} Finished. Final Score: {normalized_score:.2f}")
         print(f"[END] task={difficulty} score={normalized_score:.2f} steps={steps}", flush=True)
         return normalized_score
 
     except Exception as e:
-        print(f"🚨 Connection Error: {e}")
+        print(f"Connection Error: {e}")
         return 0
 
 
