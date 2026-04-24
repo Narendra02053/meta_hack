@@ -22,7 +22,8 @@ if "state" not in st.session_state:
 st.title("🏭 Multi-Agent Warehouse Environment")
 
 # --- Function to Render Grid ---
-def render_grid(state):
+def render_grid(env):
+    state = env.get_state()
     grid_size = env.grid_size
     grid = [["" for _ in range(grid_size[1])] for _ in range(grid_size[0])]
 
@@ -59,7 +60,7 @@ st.sidebar.header("Controls")
 st.header("1. Warehouse Grid")
 # 7. Optimize Grid Rendering using st.empty container
 grid_placeholder = st.empty()
-grid_placeholder.dataframe(render_grid(st.session_state.state), use_container_width=True)
+grid_placeholder.write(render_grid(env))
 
 if st.sidebar.button("Run Step"):
     # 5. Stabilize Position Rendering: position changes only once per step
