@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for Premium Aesthetics
+# 4. Prevent Layout Jumping
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
@@ -24,13 +24,13 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
     
+    section.main > div {
+        padding-top: 1rem;
+    }
+    
     .stApp {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         color: #f8fafc;
-    }
-    
-    .main .block-container {
-        padding-top: 2rem;
     }
     
     h1, h2, h3 {
@@ -73,6 +73,9 @@ env = st.session_state.env
 if "state" not in st.session_state:
     st.session_state.state = env.get_state()
 
+if "total_reward" not in st.session_state:
+    st.session_state.total_reward = 0
+
 # Header Section
 st.title("🏭 Advanced Warehouse Multi-Agent System")
 st.markdown("---")
@@ -83,27 +86,19 @@ total_tasks = len(st.session_state.state["tasks"])
 completed_tasks = sum(1 for t in st.session_state.state["tasks"] if t["completed"])
 avg_battery = sum(r["battery"] for r in st.session_state.state["robots"]) / len(st.session_state.state["robots"])
 
-if "total_reward" not in st.session_state:
-    st.session_state.total_reward = 0
-
 m1.metric("Tasks Fulfilled", f"{completed_tasks} / {total_tasks}")
 m2.metric("Fleet Energy", f"{avg_battery:.1f}%")
 m3.metric("System Reward", f"{st.session_state.total_reward}")
 
-# 1. Create Fixed Layout Containers at Top
-col_main_layout, col_side_layout = st.columns([2, 1])
+# 1. Create Fixed Layout Columns Once
+col_grid, col_chart = st.columns([2, 1])
 
-with col_main_layout:
-    grid_section = st.container()
-    col_a, col_b = st.columns(2)
-    with col_a:
-        telemetry_section = st.container()
-    with col_b:
-        task_section = st.container()
-
-with col_side_layout:
-    event_section = st.container()
-    chart_section = st.container()
+# Persistent Containers
+grid_section = col_grid.container()
+telemetry_section = col_grid.container()
+task_section = col_grid.container()
+chart_container = col_chart.container()
+event_section = col_chart.container()
 
 # --- UI Layout Preparation ---
 st.sidebar.header("🕹️ Control Center")
@@ -163,7 +158,7 @@ def render_grid(env):
     html_rows.append("</table>")
     return "".join(html_rows)
 
-# 2. Render Grid Inside Locked Container
+# 3. Fix Grid Rendering Inside Locked Column
 with grid_section:
     st.header("📍 Real-Time Logistics Grid")
     st.markdown(render_grid(env), unsafe_allow_html=True)
@@ -197,15 +192,17 @@ with event_section:
     for log in reversed(st.session_state.state.get("logs", [])):
         st.write(f"> {log}")
 
-# 5. Lock Chart Rendering
-with chart_section:
+# 2. Move Chart into Persistent Container
+with chart_container:
     st.header("📈 Efficiency History")
     if os.path.exists("reward_history.json"):
         with open("reward_history.json", "r") as f:
             try:
                 reward_history = json.load(f)
-                fig, ax = plt.subplots(figsize=(10, 8))
+                # 5. Reduce Chart Size
+                fig, ax = plt.subplots(figsize=(6, 3))
                 ax.plot(reward_history, color='#38bdf8', linewidth=2, marker='o', markersize=4)
+                ax.set_title("Reward vs Episode")
                 st.pyplot(fig, clear_figure=True)
             except Exception:
                 st.info("Loading telemetry...")
