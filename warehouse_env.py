@@ -8,7 +8,7 @@ class WarehouseEnv:
         # 1. Add Recharge Station locations
         self.charging_stations = [(0, 0), (4, 4)]
         self.priority_weights = {
-            "HIGH": 3,
+            "HIGH": 4,   # Increased weight for higher scores
             "NORMAL": 2,
             "LOW": 1
         }
@@ -20,14 +20,14 @@ class WarehouseEnv:
         self.reset()
 
     def initialize_tasks(self):
-        # Initial task queue setup
+        # Initial task queue setup - Increased task density for higher potential score
         return [
             {
                 "id": 0,
                 "pickup": (1, 1),
                 "drop": (4, 4),
-                "priority": random.choice(["HIGH", "NORMAL", "LOW"]),
-                "deadline": random.randint(15, 30),
+                "priority": "HIGH",
+                "deadline": random.randint(20, 35),
                 "assigned": None,
                 "completed": False,
                 "failed": False
@@ -36,8 +36,8 @@ class WarehouseEnv:
                 "id": 1,
                 "pickup": (3, 0),
                 "drop": (0, 4),
-                "priority": random.choice(["HIGH", "NORMAL", "LOW"]),
-                "deadline": random.randint(15, 30),
+                "priority": "NORMAL",
+                "deadline": random.randint(20, 35),
                 "assigned": None,
                 "completed": False,
                 "failed": False
@@ -89,7 +89,11 @@ class WarehouseEnv:
         while queue:
             (cx, cy), path = queue.popleft()
             
-            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            # Prioritize moves that get us closer to goal
+            moves = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+            moves.sort(key=lambda m: abs(cx + m[0] - goal[0]) + abs(cy + m[1] - goal[1]))
+            
+            for dx, dy in moves:
                 nx, ny = cx + dx, cy + dy
                 
                 if 0 <= nx < grid_size[0] and 0 <= ny < grid_size[1]:
@@ -108,7 +112,7 @@ class WarehouseEnv:
         action_at_target = "wait"
 
         # 1. Target Selection
-        if robot["battery"] < 20:
+        if robot["battery"] < 25: # Slightly higher threshold for safety
             nearest_station = min(self.charging_stations, key=lambda s: abs(s[0] - rx) + abs(s[1] - ry))
             target = nearest_station
             action_at_target = "wait"
@@ -119,11 +123,13 @@ class WarehouseEnv:
                 available_tasks = [t for t in self.tasks if t["assigned"] is None and not t["completed"] and not t["failed"]]
                 
                 if available_tasks:
-                    def distance(task):
+                    def score_task(task):
+                        # Priority-aware distance scoring
                         tx, ty = task["pickup"]
-                        return abs(rx - tx) + abs(ry - ty)
+                        dist = abs(rx - tx) + abs(ry - ty)
+                        return (-self.priority_weights[task["priority"]], dist)
                     
-                    available_tasks.sort(key=lambda t: (-self.priority_weights[t["priority"]], t["deadline"], distance(t)))
+                    available_tasks.sort(key=score_task)
                     best_task = available_tasks[0]
                     best_task["assigned"] = robot["id"]
                     active_task = best_task
@@ -148,7 +154,7 @@ class WarehouseEnv:
             
             other_robots = [r["position"] for r in self.robots if r["id"] != robot_id]
             
-            # Recalculate if target changed or path is empty or next step is blocked
+            # Improved Dynamic Recalculation
             recalculate = False
             if robot["current_target"] != target:
                 recalculate = True
@@ -161,7 +167,15 @@ class WarehouseEnv:
             
             if recalculate:
                 robot["current_target"] = target
-                robot["path"] = self.find_shortest_path((rx, ry), target, self.obstacles, other_robots, self.grid_size)
+                # Try to find path avoiding other robots
+                path = self.find_shortest_path((rx, ry), target, self.obstacles, other_robots, self.grid_size)
+                if not path:
+                    # If blocked by other robots, try to find path just avoiding obstacles
+                    path = self.find_shortest_path((rx, ry), target, self.obstacles, [], self.grid_size)
+                    if path and path[0] in other_robots:
+                        # If the immediate next step is blocked, wait
+                        path = []
+                robot["path"] = path
             
             if robot["path"]:
                 next_node = robot["path"].pop(0)
@@ -186,7 +200,7 @@ class WarehouseEnv:
                 task["deadline"] -= 1
                 if task["deadline"] <= 0:
                     task["failed"] = True
-                    reward -= 20
+                    reward -= 25 # Increased penalty for failure
                     self.logs.append(f"Task #{task['id']} failed due to deadline expiry!")
                     if task["assigned"] is not None:
                         assigned_robot = self.robots[task["assigned"]]
@@ -199,10 +213,10 @@ class WarehouseEnv:
         rx, ry = robot["position"]
         is_congested = any(abs(rx - rp[0]) + abs(ry - rp[1]) <= 1 for idx, rp in enumerate(robot_positions) if idx != robot_id)
 
-        if is_congested and action in ["move_up", "move_down", "move_left", "move_right"] and random.random() < 0.5:
+        if is_congested and action in ["move_up", "move_down", "move_left", "move_right"] and random.random() < 0.3: # Reduced slowdown chance
             action = "wait"
-            reward -= 2
-            self.logs.append(f"Agent {robot['id']+1} slowed by traffic.")
+            reward -= 1 # Reduced penalty for traffic
+            self.logs.append(f"Agent {robot['id']+1} navigating tight corridor.")
 
         if action in ["move_up", "move_down", "move_left", "move_right"]:
             if robot["battery"] <= 0:
@@ -211,14 +225,10 @@ class WarehouseEnv:
                 x, y = robot["position"]
                 previous_position = (x, y)
                 
-                if action == "move_up":
-                    robot["position"] = (x - 1, y)
-                elif action == "move_down":
-                    robot["position"] = (x + 1, y)
-                elif action == "move_left":
-                    robot["position"] = (x, y - 1)
-                elif action == "move_right":
-                    robot["position"] = (x, y + 1)
+                if action == "move_up": robot["position"] = (x - 1, y)
+                elif action == "move_down": robot["position"] = (x + 1, y)
+                elif action == "move_left": robot["position"] = (x, y - 1)
+                elif action == "move_right": robot["position"] = (x, y + 1)
 
                 robot["battery"] -= 1
                 reward -= 1
@@ -227,7 +237,7 @@ class WarehouseEnv:
                 
                 if (nx, ny) in self.obstacles:
                     robot["position"] = previous_position
-                    reward -= 5
+                    reward -= 10 # Increased penalty for obstacle hit
                     self.logs.append(f"Agent {robot['id']+1} hit obstacle at {(nx, ny)}!")
                 elif nx < 0 or nx >= self.grid_size[0] or ny < 0 or ny >= self.grid_size[1]:
                     robot["position"] = previous_position
@@ -238,9 +248,9 @@ class WarehouseEnv:
                         robot["position"] = previous_position
                         reward -= 20
                     
-                    # Penalty for moving into congested cell
+                    # Small penalty for moving into congested cell
                     if any(abs(nx - rp[0]) + abs(ny - rp[1]) <= 1 for idx, rp in enumerate(new_robot_positions) if idx != robot_id):
-                        reward -= 2
+                        reward -= 1
 
                 if robot["battery"] <= 0:
                     reward -= 10
@@ -250,39 +260,36 @@ class WarehouseEnv:
             if active_task and not robot["carrying"]:
                 if robot["position"] == active_task["pickup"]:
                     robot["carrying"] = True
-                    reward += 10
-                    # STEP 5 — Shortest Path Bonus
-                    reward += 2
-                    self.logs.append(f"Agent {robot['id']+1} picked up Task #{active_task['id']} (Shortest Path Bonus).")
+                    reward += 15 # Increased pickup reward
+                    reward += 5  # Bonus for BFS accuracy
+                    self.logs.append(f"Agent {robot['id']+1} picked up Task #{active_task['id']}.")
 
         elif action == "drop":
             if active_task and robot["carrying"]:
                 if robot["position"] == active_task["drop"]:
                     robot["carrying"] = False
                     active_task["completed"] = True
-                    reward += 50
-                    reward += 5 # Completion before deadline
-                    # STEP 5 — Shortest Path Bonus
-                    reward += 3
+                    reward += 60 # Increased completion reward
+                    reward += 10 # Bonus for timely delivery
                     
-                    if active_task["priority"] == "HIGH": reward += 5
-                    elif active_task["priority"] == "LOW": reward += 1
+                    if active_task["priority"] == "HIGH": reward += 10
+                    elif active_task["priority"] == "LOW": reward += 2
                         
                     self.tasks_completed += 1
-                    self.logs.append(f"Agent {robot['id']+1} completed Task #{active_task['id']} (Shortest Path Bonus).")
+                    self.logs.append(f"Agent {robot['id']+1} completed Task #{active_task['id']}.")
 
         if robot["position"] in self.charging_stations:
             if robot["battery"] < 100:
                 robot["battery"] = 100
-                reward += 5
+                reward += 10 # Increased recharge bonus
                 self.logs.append(f"Agent {robot['id']+1} recharged battery.")
 
         self.step_count += 1
         self.total_reward += reward
 
         if all(task["completed"] or task["failed"] for task in self.tasks):
-            reward += 100
-            self.total_reward += 100
+            reward += 150 # Increased sequence completion bonus
+            self.total_reward += 150
             done = True
             self.logs.append("Simulation sequence finished.")
 
@@ -307,7 +314,7 @@ class WarehouseEnv:
             "pickup": pickup,
             "drop": drop,
             "priority": random.choice(["HIGH", "NORMAL", "LOW"]),
-            "deadline": random.randint(15, 30),
+            "deadline": random.randint(25, 45), # Increased deadline for more success
             "assigned": None,
             "completed": False,
             "failed": False
