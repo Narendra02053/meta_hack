@@ -34,13 +34,15 @@ class WarehouseEnv:
         ]
 
         self.tasks = self.initialize_tasks()
+        self.logs = ["System reset. Agents initialized."]
 
         return self.get_state()
 
     def get_state(self):
         state = {
             "robots": self.robots,
-            "tasks": self.tasks
+            "tasks": self.tasks,
+            "logs": self.logs[-5:] # Return last 5 logs
         }
         return state
 
@@ -76,7 +78,7 @@ class WarehouseEnv:
             else:
                 return "wait"
 
-        # 4. Movement Strategy (step-by-step)
+        # 4. Movement Strategy (with basic avoidance)
         if target:
             tx, ty = target
             
@@ -84,14 +86,27 @@ class WarehouseEnv:
             if rx == tx and ry == ty:
                 return action_at_target
                 
-            if rx < tx:
-                return "move_down"
-            if rx > tx:
-                return "move_up"
-            if ry < ty:
-                return "move_right"
-            if ry > ty:
-                return "move_left"
+            preferred_moves = []
+            if rx < tx: preferred_moves.append("move_down")
+            if rx > tx: preferred_moves.append("move_up")
+            if ry < ty: preferred_moves.append("move_right")
+            if ry > ty: preferred_moves.append("move_left")
+            
+            # Check for robot-to-robot collision for preferred moves
+            robot_positions = [r["position"] for r in self.robots if r["id"] != robot_id]
+            
+            for move in preferred_moves:
+                nx, ny = rx, ry
+                if move == "move_down": nx += 1
+                elif move == "move_up": nx -= 1
+                elif move == "move_right": ny += 1
+                elif move == "move_left": ny -= 1
+                
+                if (nx, ny) not in robot_positions:
+                    return move
+            
+            # If all preferred moves blocked, wait to avoid gridlock
+            return "wait"
 
         return "wait"
 
@@ -101,20 +116,17 @@ class WarehouseEnv:
         done = False
 
         # 1. Dynamic Task Assignment
-        # Check if robot already has an active, incomplete task assigned
         active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"]), None)
         
-        # If no active task and the robot is not carrying anything, assign an available task
         if active_task is None and not robot["carrying"]:
             available_task = next((t for t in self.tasks if t["assigned"] is None and not t["completed"]), None)
             if available_task:
                 available_task["assigned"] = robot["id"]
                 active_task = available_task
-                print(f"Task assigned to robot {robot['id']}")
+                self.logs.append(f"Agent {robot['id']+1} assigned Task #{available_task['id']}.")
 
         # 2. Movement Logic & Collision Detection
         if action in ["move_up", "move_down", "move_left", "move_right"]:
-            # 4. Prevent Movement if Battery Dead
             if robot["battery"] <= 0:
                 reward -= 10
             else:
@@ -130,61 +142,50 @@ class WarehouseEnv:
                 elif action == "move_right":
                     robot["position"] = (x, y + 1)
 
-                # 2. Reduce Battery on Movement
                 robot["battery"] -= 1
                 reward -= 1
 
-                # Detect Wall Collision
                 nx, ny = robot["position"]
                 if nx < 0 or nx >= self.grid_size[0] or ny < 0 or ny >= self.grid_size[1]:
-                    # Undo movement
                     robot["position"] = previous_position
                     reward -= 5
-                    print(f"Wall collision detected for robot {robot_id}")
+                else:
+                    robot_positions = [r["position"] for r in self.robots]
+                    if len(robot_positions) != len(set(robot_positions)):
+                        robot["position"] = previous_position
+                        reward -= 20
 
-                # Detect Robot-to-Robot Collision
-                robot_positions = [r["position"] for r in self.robots]
-                if len(robot_positions) != len(set(robot_positions)):
-                    # Undo movement
-                    robot["position"] = previous_position
-                    reward -= 20
-                    print(f"Collision detected between robots")
-
-                # Check dead battery immediately after consumption
                 if robot["battery"] <= 0:
                     reward -= 10
+                    self.logs.append(f"Agent {robot['id']+1} battery depleted!")
 
-        # 3. Pickup Logic Update
         elif action == "pickup":
             if active_task and not robot["carrying"]:
                 if robot["position"] == active_task["pickup"]:
                     robot["carrying"] = True
                     reward += 10
+                    self.logs.append(f"Agent {robot['id']+1} picked up Task #{active_task['id']}.")
 
-        # 4. Drop Logic Update
         elif action == "drop":
             if active_task and robot["carrying"]:
                 if robot["position"] == active_task["drop"]:
                     robot["carrying"] = False
                     active_task["completed"] = True
                     reward += 50
-                    print(f"Task completed by robot {robot['id']}")
+                    self.logs.append(f"Agent {robot['id']+1} completed Task #{active_task['id']}.")
 
-        # 3. Add Recharge Logic
-        # Automatic charging when resting or landing on a charging station
         if robot["position"] in self.charging_stations:
             if robot["battery"] < 100:
                 robot["battery"] = 100
                 reward += 5
-                print(f"Robot {robot['id']} recharged.")
+                self.logs.append(f"Agent {robot['id']+1} recharged battery.")
 
-        # 5. Track Completed Tasks
         completed_tasks = sum(1 for t in self.tasks if t["completed"])
         if completed_tasks == len(self.tasks):
             done = True
             reward += 100
+            self.logs.append("All warehouse tasks fulfilled!")
 
-        # State output naturally includes "battery" via self.robots dictionary
         return self.get_state(), reward, done
 
 if __name__ == "__main__":

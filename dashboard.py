@@ -44,7 +44,6 @@ st.markdown("""
         padding: 1.5rem;
         border-radius: 1rem;
         border: 1px solid rgba(56, 189, 248, 0.2);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
     
     .stButton > button {
@@ -69,6 +68,14 @@ st.markdown("""
         border-radius: 0.75rem;
         border-left: 4px solid #38bdf8;
         margin-bottom: 1rem;
+    }
+    
+    .log-entry {
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        color: #94a3b8;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -98,37 +105,40 @@ total_tasks = len(st.session_state.state["tasks"])
 completed_tasks = sum(1 for t in st.session_state.state["tasks"] if t["completed"])
 avg_battery = sum(r["battery"] for r in st.session_state.state["robots"]) / len(st.session_state.state["robots"])
 
-m1.metric("Tasks Completed", f"{completed_tasks} / {total_tasks}", delta=f"+{completed_tasks}" if completed_tasks > 0 else None)
-m2.metric("Average Battery", f"{avg_battery:.1f}%", delta="-1.0%" if st.session_state.run_steps > 0 else None)
-m3.metric("System Status", "Operational", delta="Nominal", delta_color="normal")
+m1.metric("Tasks Fulfilled", f"{completed_tasks} / {total_tasks}", delta=f"+{completed_tasks}" if completed_tasks > 0 else None)
+m2.metric("Fleet Energy", f"{avg_battery:.1f}%", delta="-1.2%" if st.session_state.run_steps > 0 else None)
+m3.metric("Deployment", "HuggingFace", delta="Active", delta_color="normal")
 
 # --- UI Layout Preparation ---
 st.sidebar.header("🕹️ Control Center")
 
 # Reset Logic
-if st.sidebar.button("🔄 Reset Environment"):
+if st.sidebar.button("🔄 System Reset"):
     st.session_state.env = WarehouseEnv()
     st.session_state.run_steps = 0
     st.session_state.state = st.session_state.env.get_state()
     st.rerun()
 
 # Single Step
-if st.sidebar.button("▶️ Run Single Step"):
+if st.sidebar.button("▶️ Execute Step"):
     for robot_id in range(len(env.robots)):
         action = env.intelligent_action(robot_id)
-        env.step(robot_id, action)
-    st.session_state.state = env.get_state()
+        state, reward, done = env.step(robot_id, action)
+    st.session_state.state = state
 
 # Multi-Step Animation
-if st.sidebar.button("⏩ Run 10 Steps Animation"):
-    st.session_state.run_steps = 10
+if st.sidebar.button("⏩ Start Full Simulation"):
+    st.session_state.run_steps = 25
 
 if st.session_state.run_steps > 0:
     for robot_id in range(len(env.robots)):
         action = env.intelligent_action(robot_id)
-        env.step(robot_id, action)
+        state, reward, done = env.step(robot_id, action)
+        if done:
+            st.session_state.run_steps = 0
+            break
 
-    st.session_state.state = env.get_state()
+    st.session_state.state = state
     st.session_state.run_steps -= 1
     
     time.sleep(0.12)
@@ -157,72 +167,85 @@ def render_grid_dataframe(env):
     return pd.DataFrame(grid)
 
 # --- Main Layout ---
-st.header("📍 Real-Time Logistics Grid")
-st.session_state.grid_placeholder.dataframe(
-    render_grid_dataframe(env),
-    use_container_width=True
-)
+col_main, col_side = st.columns([2, 1])
 
-col1, col2 = st.columns(2)
+with col_main:
+    st.header("📍 Real-Time Logistics Grid")
+    st.session_state.grid_placeholder.dataframe(
+        render_grid_dataframe(env),
+        use_container_width=True
+    )
 
-with col1:
-    st.header("🤖 Agent Analytics")
-    if "status_container" not in st.session_state:
-        st.session_state.status_container = st.empty()
-        
-    status_html = []
-    for robot in st.session_state.state["robots"]:
-        battery_color = "#10b981" if robot["battery"] > 50 else "#f59e0b" if robot["battery"] > 20 else "#ef4444"
-        status_html.append(f"""
-        <div class="status-card">
-            <div style="display: flex; justify-content: space-between;">
-                <b>Agent {robot['id']+1}</b>
-                <span style="color: {battery_color}">{robot['battery']}% Battery</span>
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.header("🤖 Fleet Telemetry")
+        if "status_container" not in st.session_state:
+            st.session_state.status_container = st.empty()
+            
+        status_html = []
+        for robot in st.session_state.state["robots"]:
+            battery_color = "#10b981" if robot["battery"] > 50 else "#f59e0b" if robot["battery"] > 20 else "#ef4444"
+            status_html.append(f"""
+            <div class="status-card">
+                <div style="display: flex; justify-content: space-between;">
+                    <b>Agent {robot['id']+1}</b>
+                    <span style="color: {battery_color}">{robot['battery']}%</span>
+                </div>
+                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
+                    Loc: {robot['position']} | Carrying: {"Yes 📦" if robot['carrying'] else "Empty"}
+                </div>
             </div>
-            <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem;">
-                Position: {robot['position']} | Carrying: {"Yes 📦" if robot['carrying'] else "No"}
-            </div>
-        </div>
-        """)
-    st.session_state.status_container.markdown("".join(status_html), unsafe_allow_html=True)
+            """)
+        st.session_state.status_container.markdown("".join(status_html), unsafe_allow_html=True)
 
-with col2:
-    st.header("📋 Operational Backlog")
-    if "task_container" not in st.session_state:
-        st.session_state.task_container = st.empty()
-        
-    task_list = []
-    for task in st.session_state.state["tasks"]:
-        task_list.append({
-            "ID": f"#{task['id']}",
-            "Origin": str(task["pickup"]),
-            "Destination": str(task["drop"]),
-            "Status": "✅ Complete" if task["completed"] else "⏳ Pending"
-        })
-    st.session_state.task_container.dataframe(pd.DataFrame(task_list), use_container_width=True, hide_index=True)
+    with col_b:
+        st.header("📋 Fulfillment Queue")
+        if "task_container" not in st.session_state:
+            st.session_state.task_container = st.empty()
+            
+        task_list = []
+        for task in st.session_state.state["tasks"]:
+            task_list.append({
+                "Ref": f"T#{task['id']}",
+                "Pickup": str(task["pickup"]),
+                "Drop": str(task["drop"]),
+                "State": "Fulfilled" if task["completed"] else "Active"
+            })
+        st.session_state.task_container.dataframe(pd.DataFrame(task_list), use_container_width=True, hide_index=True)
 
-st.header("📈 Performance Trajectory")
-if "graph_container" not in st.session_state:
-    st.session_state.graph_container = st.empty()
+with col_side:
+    st.header("📡 Live Event Feed")
+    log_container = st.container(border=True)
+    with log_container:
+        for log in reversed(st.session_state.state.get("logs", [])):
+            st.markdown(f'<div class="log-entry">> {log}</div>', unsafe_allow_html=True)
+    
+    st.header("📈 Efficiency History")
+    if "graph_container" not in st.session_state:
+        st.session_state.graph_container = st.empty()
 
-if os.path.exists("reward_history.json"):
-    with open("reward_history.json", "r") as f:
-        try:
-            reward_history = json.load(f)
-            fig, ax = plt.subplots(figsize=(10, 3))
-            fig.patch.set_facecolor('none')
-            ax.set_facecolor('none')
-            
-            ax.plot(reward_history, color='#38bdf8', linewidth=2, marker='o', markersize=4, markerfacecolor='#ffffff')
-            ax.fill_between(range(len(reward_history)), reward_history, color='#38bdf8', alpha=0.1)
-            
-            ax.set_title("Reward Progression per Episode", color='#f8fafc', fontsize=12)
-            ax.tick_params(colors='#94a3b8')
-            for spine in ax.spines.values():
-                spine.set_edgecolor('#334155')
-            
-            st.session_state.graph_container.pyplot(fig)
-        except Exception:
-            st.warning("Simulation data processing...")
-else:
-    st.info("Performance history will appear after simulation runs.")
+    if os.path.exists("reward_history.json"):
+        with open("reward_history.json", "r") as f:
+            try:
+                reward_history = json.load(f)
+                fig, ax = plt.subplots(figsize=(10, 8))
+                fig.patch.set_facecolor('none')
+                ax.set_facecolor('none')
+                
+                ax.plot(reward_history, color='#38bdf8', linewidth=2, marker='o', markersize=4)
+                ax.fill_between(range(len(reward_history)), reward_history, color='#38bdf8', alpha=0.1)
+                
+                ax.set_title("Reward Curve", color='#f8fafc')
+                ax.tick_params(colors='#94a3b8')
+                for spine in ax.spines.values():
+                    spine.set_edgecolor('#334155')
+                
+                st.session_state.graph_container.pyplot(fig)
+            except Exception:
+                st.info("Loading telemetry...")
+    else:
+        st.info("No historical data found.")
+
+if completed_tasks == total_tasks:
+    st.balloons()
+    st.success("Mission Accomplished: All tasks fulfilled with maximum efficiency!")
