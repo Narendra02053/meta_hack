@@ -24,16 +24,20 @@ class WarehouseEnv:
                 "pickup": (1, 1),
                 "drop": (4, 4),
                 "priority": random.choice(["HIGH", "NORMAL", "LOW"]),
+                "deadline": random.randint(15, 30),
                 "assigned": None,
-                "completed": False
+                "completed": False,
+                "failed": False
             },
             {
                 "id": 1,
                 "pickup": (3, 0),
                 "drop": (0, 4),
                 "priority": random.choice(["HIGH", "NORMAL", "LOW"]),
+                "deadline": random.randint(15, 30),
                 "assigned": None,
-                "completed": False
+                "completed": False,
+                "failed": False
             }
         ]
 
@@ -78,25 +82,26 @@ class WarehouseEnv:
         else:
             # STEP 3 — Implement Intelligent Task Selection
             # Check for active task already assigned to this robot
-            active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"]), None)
+            active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"] and not t["failed"]), None)
             
             if not active_task and not robot["carrying"]:
                 # Try to pick a new task
-                available_tasks = [t for t in self.tasks if t["assigned"] is None and not t["completed"]]
+                available_tasks = [t for t in self.tasks if t["assigned"] is None and not t["completed"] and not t["failed"]]
                 
                 if available_tasks:
                     def distance(task):
                         tx, ty = task["pickup"]
                         return abs(rx - tx) + abs(ry - ty)
                     
-                    # Sort by priority (descending) and distance (ascending)
-                    available_tasks.sort(key=lambda t: (-self.priority_weights[t["priority"]], distance(t)))
+                    # STEP 4 — Modify Intelligent Task Selection Sorting
+                    # Sort by priority (descending), deadline (ascending), and distance (ascending)
+                    available_tasks.sort(key=lambda t: (-self.priority_weights[t["priority"]], t["deadline"], distance(t)))
                     
                     # Assign best task
                     best_task = available_tasks[0]
                     best_task["assigned"] = robot["id"]
                     active_task = best_task
-                    self.logs.append(f"Agent {robot['id']+1} auto-assigned {best_task['priority']} Task #{best_task['id']}.")
+                    self.logs.append(f"Agent {robot['id']+1} auto-assigned {best_task['priority']} Task #{best_task['id']} (Deadline: {best_task['deadline']}).")
 
             if active_task:
                 # 2. If robot carrying, move toward drop location
@@ -147,8 +152,22 @@ class WarehouseEnv:
         reward = 0
         done = False
 
+        # STEP 2 — Decrease Deadline Each Step
+        for task in self.tasks:
+            if not task["completed"] and not task["failed"]:
+                task["deadline"] -= 1
+                # STEP 3 — Handle Deadline Expiry
+                if task["deadline"] <= 0:
+                    task["failed"] = True
+                    reward -= 20
+                    self.logs.append(f"Task #{task['id']} failed due to deadline expiry!")
+                    # If robot was assigned this task, clear it
+                    if task["assigned"] is not None:
+                        assigned_robot = self.robots[task["assigned"]]
+                        assigned_robot["carrying"] = False # Simple reset
+
         # Get the task assigned to this robot
-        active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"]), None)
+        active_task = next((t for t in self.tasks if t["assigned"] == robot["id"] and not t["completed"] and not t["failed"]), None)
 
         # 2. Movement Logic & Collision Detection
         if action in ["move_up", "move_down", "move_left", "move_right"]:
@@ -198,14 +217,15 @@ class WarehouseEnv:
                     active_task["completed"] = True
                     reward += 50
                     
-                    # STEP 6 — Add Priority Reward Bonus
+                    # STEP 6 — Add Deadline & Priority Reward Bonuses
+                    reward += 5 # Completion before deadline bonus
                     if active_task["priority"] == "HIGH":
                         reward += 5
                     elif active_task["priority"] == "LOW":
                         reward += 1
                         
                     self.tasks_completed += 1
-                    self.logs.append(f"Agent {robot['id']+1} completed {active_task['priority']} Task #{active_task['id']}.")
+                    self.logs.append(f"Agent {robot['id']+1} completed {active_task['priority']} Task #{active_task['id']} before deadline!")
 
         if robot["position"] in self.charging_stations:
             if robot["battery"] < 100:
@@ -216,11 +236,11 @@ class WarehouseEnv:
         self.step_count += 1
         self.total_reward += reward
 
-        if all(task["completed"] for task in self.tasks):
+        if all(task["completed"] or task["failed"] for task in self.tasks):
             reward += 100
             self.total_reward += 100
             done = True
-            self.logs.append("All warehouse tasks fulfilled!")
+            self.logs.append("Simulation sequence finished.")
 
         return self.get_state(), reward, done
 
@@ -238,10 +258,12 @@ class WarehouseEnv:
             "pickup": pickup,
             "drop": drop,
             "priority": random.choice(["HIGH", "NORMAL", "LOW"]),
+            "deadline": random.randint(15, 30),
             "assigned": None,
-            "completed": False
+            "completed": False,
+            "failed": False
         })
-        self.logs.append(f"New dynamic task #{new_id} spawned at {pickup}.")
+        self.logs.append(f"New task #{new_id} spawned at {pickup} (Deadline: {self.tasks[-1]['deadline']}).")
         return self.get_state()
 
 if __name__ == "__main__":

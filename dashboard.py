@@ -205,12 +205,26 @@ with task_section:
             "LOW": "🟢 LOW"
         }.get(task["priority"], task["priority"])
         
+        # Deadline visualization
+        deadline = task["deadline"]
+        if task["completed"]:
+            deadline_display = "✅ Done"
+        elif task.get("failed", False):
+            deadline_display = "❌ Expired"
+        elif deadline <= 5:
+            deadline_display = f"🔴 Critical ({deadline})"
+        elif deadline <= 10:
+            deadline_display = f"🟡 Warning ({deadline})"
+        else:
+            deadline_display = f"🟢 Safe ({deadline})"
+
         task_list.append({
             "Ref": f"T#{task['id']}",
             "Priority": priority_display,
+            "Deadline": deadline_display,
             "Pickup": str(task["pickup"]),
             "Drop": str(task["drop"]),
-            "State": "Fulfilled" if task["completed"] else "Active"
+            "State": "Fulfilled" if task["completed"] else "Failed" if task.get("failed") else "Active"
         })
     st.dataframe(pd.DataFrame(task_list), use_container_width=True, hide_index=True)
 
