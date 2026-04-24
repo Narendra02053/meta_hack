@@ -16,6 +16,7 @@ class Observation(BaseModel):
 
 class Action(BaseModel):
     action: str
+    robot_id: Optional[int] = 0
 
 class StepResponse(BaseModel):
     observation: Observation
