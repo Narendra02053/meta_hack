@@ -9,17 +9,20 @@ from warehouse_env import WarehouseEnv
 # Page configuration
 st.set_page_config(page_title="Warehouse AI Dashboard", layout="wide")
 
-# 1. Implement Persistent Simulation State
+# 1. Add Simulation Control Variables
 if "env" not in st.session_state:
     st.session_state.env = WarehouseEnv()
+
+if "run_steps" not in st.session_state:
+    st.session_state.run_steps = 0
+
+if "grid_placeholder" not in st.session_state:
+    st.session_state.grid_placeholder = st.empty()
 
 env = st.session_state.env
 
 if "state" not in st.session_state:
     st.session_state.state = env.get_state()
-
-if "run_steps" not in st.session_state:
-    st.session_state.run_steps = 0
 
 st.title("🏭 Multi-Agent Warehouse Environment")
 
@@ -33,17 +36,17 @@ if st.sidebar.button("Reset Environment"):
     st.session_state.state = st.session_state.env.get_state()
     st.rerun()
 
+# 3. Fix Single Step Execution
 if st.sidebar.button("Run Step"):
     for robot_id in range(len(env.robots)):
         action = env.intelligent_action(robot_id)
         env.step(robot_id, action)
     st.session_state.state = env.get_state()
 
-# 2. Convert Multi-Step Execution Into Frame-Based Simulation
+# 2. Convert Multi-Step Execution into Frame Execution
 if st.sidebar.button("Run Multiple Steps (10)"):
     st.session_state.run_steps = 10
 
-# 2. Process steps incrementally
 if st.session_state.run_steps > 0:
     for robot_id in range(len(env.robots)):
         action = env.intelligent_action(robot_id)
@@ -52,12 +55,12 @@ if st.session_state.run_steps > 0:
     st.session_state.state = env.get_state()
     st.session_state.run_steps -= 1
     
-    # 5. Implement Frame Rate Control
+    # 8. Add Frame Delay
     time.sleep(0.12)
     st.rerun()
 
 
-# --- Function to Render Grid ---
+# --- 7. Optimize HTML Rendering ---
 def render_grid(env):
     state = env.get_state()
     grid_size = env.grid_size
@@ -77,28 +80,24 @@ def render_grid(env):
         rx, ry = robot["position"]
         grid[rx][ry] += f"R{robot['id']+1} "
 
-    html = "<table style='width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #ccc; font-size: 20px;'>"
+    html_rows = []
+    html_rows.append("<table style='width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #ccc; font-size: 20px;'>")
     for i in range(grid_size[0]):
-        html += "<tr>"
+        html_rows.append("<tr>")
         for j in range(grid_size[1]):
             cell_val = grid[i][j].strip()
             if cell_val == "":
                 cell_val = "-"
-            html += f"<td style='border: 1px solid #ccc; padding: 20px; font-weight: bold;'>{cell_val}</td>"
-        html += "</tr>"
-    html += "</table>"
-    return html
+            html_rows.append(f"<td style='border: 1px solid #ccc; padding: 20px; font-weight: bold;'>{cell_val}</td>")
+        html_rows.append("</tr>")
+    html_rows.append("</table>")
+    return "".join(html_rows)
 
 # --- 4. Separate Simulation Logic From Rendering Logic ---
-# Update State -> Store State -> Render UI
-
 st.header("1. Warehouse Grid")
 
-# 3. Use Persistent UI Containers
-if "grid_container" not in st.session_state:
-    st.session_state.grid_container = st.empty()
-
-st.session_state.grid_container.markdown(
+# 4. Use Persistent Grid Placeholder
+st.session_state.grid_placeholder.markdown(
     render_grid(env),
     unsafe_allow_html=True
 )
@@ -120,12 +119,12 @@ with col2:
     if "task_container" not in st.session_state:
         st.session_state.task_container = st.empty()
         
-    task_html = "<table style='width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #ccc;'><tr><th style='border: 1px solid #ccc; padding: 8px;'>Task ID</th><th style='border: 1px solid #ccc; padding: 8px;'>Pickup Location</th><th style='border: 1px solid #ccc; padding: 8px;'>Drop Location</th><th style='border: 1px solid #ccc; padding: 8px;'>Completed Status</th></tr>"
+    task_html_list = ["<table style='width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #ccc;'><tr><th style='border: 1px solid #ccc; padding: 8px;'>Task ID</th><th style='border: 1px solid #ccc; padding: 8px;'>Pickup Location</th><th style='border: 1px solid #ccc; padding: 8px;'>Drop Location</th><th style='border: 1px solid #ccc; padding: 8px;'>Completed Status</th></tr>"]
     for task in st.session_state.state["tasks"]:
         status = "✅" if task["completed"] else "❌"
-        task_html += f"<tr><td style='border: 1px solid #ccc; padding: 8px;'>{task['id']}</td><td style='border: 1px solid #ccc; padding: 8px;'>{task['pickup']}</td><td style='border: 1px solid #ccc; padding: 8px;'>{task['drop']}</td><td style='border: 1px solid #ccc; padding: 8px;'>{status}</td></tr>"
-    task_html += "</table>"
-    st.session_state.task_container.markdown(task_html, unsafe_allow_html=True)
+        task_html_list.append(f"<tr><td style='border: 1px solid #ccc; padding: 8px;'>{task['id']}</td><td style='border: 1px solid #ccc; padding: 8px;'>{task['pickup']}</td><td style='border: 1px solid #ccc; padding: 8px;'>{task['drop']}</td><td style='border: 1px solid #ccc; padding: 8px;'>{status}</td></tr>")
+    task_html_list.append("</table>")
+    st.session_state.task_container.markdown("".join(task_html_list), unsafe_allow_html=True)
 
 st.header("5. Reward History Graph")
 
