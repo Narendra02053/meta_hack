@@ -40,16 +40,18 @@ def get_llm_action(state: Dict[str, Any]) -> str:
         return get_heuristic_action(state)
 
     prompt = f"""
-    You are a Warehouse Optimization Agent. Your goal is to maximize shipped orders and minimize time.
-    Current State: {json.dumps(state, indent=2)}
+    You are an Elite Warehouse Optimization AI. Your goal is to achieve a 0.90+ efficiency score.
+    Score Formula: 0.7 * (shipped/total) + 0.3 * (time_remaining/total_time).
     
-    Available Actions:
-    - pick_<item_name> (if in current_order and inventory > 0)
-    - pack_order (if all items in current_order are 0)
-    - ship_order (if packed_orders > shipped_orders)
-    - inspect_return (if returns_pending > 0)
-    - restock_<item_name> (if in inspection_pending)
-    - wait
+    STRATEGY:
+    - EVERY action (including 'wait', 'restock', 'inspect') costs 1 time step and reduces the score.
+    - ONLY pick items needed for the 'current_order'.
+    - ONLY 'restock' or 'inspect_return' if you are MISSING an item needed for the 'current_order'.
+    - 'pack_order' immediately when the current order is ready.
+    - 'ship_order' immediately after packing.
+    - AVOID 'wait' at all costs.
+
+    Current State: {json.dumps(state)}
     
     Respond with ONLY the action string.
     """
@@ -57,10 +59,12 @@ def get_llm_action(state: Dict[str, Any]) -> str:
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=10
+            messages=[{"role": "system", "content": "You are a lean logistics expert. Output only valid actions."},
+                      {"role": "user", "content": prompt}],
+            max_tokens=10,
+            temperature=0
         )
-        return response.choices[0].message.content.strip()
+        return response.choices[0].message.content.strip().lower()
     except Exception as e:
         print(f"⚠️ LLM Error: {e}. Falling back to heuristic.")
         return get_heuristic_action(state)
@@ -100,7 +104,7 @@ def run_episode(difficulty: str = "easy"):
 
             print(f"Step {steps:02} | Action: {action.ljust(15)} | Reward: {reward:+.2f} | Total: {total_reward:.2f}")
             print(f"[STEP] step={steps} reward={reward}", flush=True)
-            time.sleep(0.05)
+            time.sleep(0.01)
 
         # Calculate normalized score for reporting (0 to 1 range)
         shipped = state.get("shipped_orders", 0)

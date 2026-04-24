@@ -18,31 +18,45 @@ class SmartAgent:
         packed = s.get("packed_orders", 0)
         shipped = s.get("shipped_orders", 0)
 
-        # 1. Ship any packed orders
+        # 1. Ship any packed orders immediately to advance current_order_index
         if packed > shipped:
             return "ship_order"
 
-        # 2. Restock items to boost inventory
-        if inspections:
-            return f"restock_{inspections[0]}"
-
-        # 3. Handle Order Picking
+        # 2. Handle Order Processing (Primary Goal for Time Efficiency)
         if order:
-            # Check if we have all items
             all_picked = True
+            needed_item = None
             for product, count in order.items():
                 if count > 0:
                     all_picked = False
                     # Can we pick this item?
                     if inventory.get(product, 0) > 0:
                         return f"pick_{product}"
+                    else:
+                        needed_item = product
+                        break # Stop looking, we found a bottleneck
             
             if all_picked:
                 return "pack_order"
 
-        # 4. Process Returns if inventory is low or order can't be fulfilled
-        if returns:
-            return "inspect_return"
+            # 3. Only if bottlenecked by stock, try to find the item in inspections/returns
+            if needed_item:
+                # Is it in the inspection queue?
+                if needed_item in inspections:
+                    return f"restock_{needed_item}"
+                
+                # Is it in the returns queue?
+                if needed_item in returns:
+                    return "inspect_return"
 
-        # 5. Fallback to wait (minimal penalty)
+        # 4. If not bottlenecked but have extra time/no order, handle other tasks
+        # But wait - every action costs time. To get 0.90+, we MUST minimize actions.
+        # So we skip "nice-to-have" restocking unless we are literally waiting.
+        
+        if order is None:
+            # All orders potentially done or at the very end
+            if returns: return "inspect_return"
+            if inspections: return f"restock_{inspections[0]}"
+
+        # 5. Fallback to wait (minimal penalty, but costs 1 time step)
         return "wait"
