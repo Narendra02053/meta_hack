@@ -83,9 +83,27 @@ total_tasks = len(st.session_state.state["tasks"])
 completed_tasks = sum(1 for t in st.session_state.state["tasks"] if t["completed"])
 avg_battery = sum(r["battery"] for r in st.session_state.state["robots"]) / len(st.session_state.state["robots"])
 
+if "total_reward" not in st.session_state:
+    st.session_state.total_reward = 0
+
 m1.metric("Tasks Fulfilled", f"{completed_tasks} / {total_tasks}")
 m2.metric("Fleet Energy", f"{avg_battery:.1f}%")
-m3.metric("Deployment", "HuggingFace")
+m3.metric("System Reward", f"{st.session_state.total_reward}")
+
+# 1. Create Fixed Layout Containers at Top
+col_main_layout, col_side_layout = st.columns([2, 1])
+
+with col_main_layout:
+    grid_section = st.container()
+    col_a, col_b = st.columns(2)
+    with col_a:
+        telemetry_section = st.container()
+    with col_b:
+        task_section = st.container()
+
+with col_side_layout:
+    event_section = st.container()
+    chart_section = st.container()
 
 # --- UI Layout Preparation ---
 st.sidebar.header("🕹️ Control Center")
@@ -94,12 +112,14 @@ st.sidebar.header("🕹️ Control Center")
 if st.sidebar.button("🔄 System Reset"):
     st.session_state.env = WarehouseEnv()
     st.session_state.state = st.session_state.env.get_state()
+    st.session_state.total_reward = 0
 
 # Single Step
 if st.sidebar.button("Run Step"):
     for robot_id in range(len(env.robots)):
         action = env.intelligent_action(robot_id)
-        env.step(robot_id, action)
+        state, reward, done = env.step(robot_id, action)
+        st.session_state.total_reward += reward
     st.session_state.state = env.get_state()
 
 # Multiple Steps
@@ -107,7 +127,8 @@ if st.sidebar.button("Run Multiple Steps (10)"):
     for _ in range(10):
         for robot_id in range(len(env.robots)):
             action = env.intelligent_action(robot_id)
-            env.step(robot_id, action)
+            state, reward, done = env.step(robot_id, action)
+            st.session_state.total_reward += reward
         time.sleep(0.15)
     st.session_state.state = env.get_state()
 
@@ -142,40 +163,42 @@ def render_grid(env):
     html_rows.append("</table>")
     return "".join(html_rows)
 
-# --- Main Layout ---
-col_main, col_side = st.columns([2, 1])
-
-with col_main:
+# 2. Render Grid Inside Locked Container
+with grid_section:
     st.header("📍 Real-Time Logistics Grid")
     st.markdown(render_grid(env), unsafe_allow_html=True)
 
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.header("🤖 Fleet Telemetry")
-        for robot in st.session_state.state["robots"]:
-            st.write(
-                f"Robot {robot['id']} → {robot['position']} | "
-                f"Battery: {robot['battery']} | "
-                f"Carrying: {robot['carrying']}"
-            )
+# 3. Lock Telemetry Rendering
+with telemetry_section:
+    st.header("🤖 Fleet Telemetry")
+    for robot in st.session_state.state["robots"]:
+        st.write(
+            f"Robot {robot['id']} → {robot['position']} | "
+            f"Battery: {robot['battery']} | "
+            f"Carrying: {robot['carrying']}"
+        )
 
-    with col_b:
-        st.header("📋 Fulfillment Queue")
-        task_list = []
-        for task in st.session_state.state["tasks"]:
-            task_list.append({
-                "Ref": f"T#{task['id']}",
-                "Pickup": str(task["pickup"]),
-                "Drop": str(task["drop"]),
-                "State": "Fulfilled" if task["completed"] else "Active"
-            })
-        st.dataframe(pd.DataFrame(task_list), use_container_width=True, hide_index=True)
+# 4. Lock Task Table
+with task_section:
+    st.header("📋 Fulfillment Queue")
+    task_list = []
+    for task in st.session_state.state["tasks"]:
+        task_list.append({
+            "Ref": f"T#{task['id']}",
+            "Pickup": str(task["pickup"]),
+            "Drop": str(task["drop"]),
+            "State": "Fulfilled" if task["completed"] else "Active"
+        })
+    st.dataframe(pd.DataFrame(task_list), use_container_width=True, hide_index=True)
 
-with col_side:
+# Lock Event Feed
+with event_section:
     st.header("📡 Live Event Feed")
     for log in reversed(st.session_state.state.get("logs", [])):
         st.write(f"> {log}")
-    
+
+# 5. Lock Chart Rendering
+with chart_section:
     st.header("📈 Efficiency History")
     if os.path.exists("reward_history.json"):
         with open("reward_history.json", "r") as f:
@@ -183,7 +206,7 @@ with col_side:
                 reward_history = json.load(f)
                 fig, ax = plt.subplots(figsize=(10, 8))
                 ax.plot(reward_history, color='#38bdf8', linewidth=2, marker='o', markersize=4)
-                st.pyplot(fig)
+                st.pyplot(fig, clear_figure=True)
             except Exception:
                 st.info("Loading telemetry...")
 
