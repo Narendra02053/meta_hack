@@ -82,6 +82,9 @@ if "state" not in st.session_state:
 
 if "total_reward" not in st.session_state:
     st.session_state.total_reward = 0
+if "pos_reward" not in st.session_state: st.session_state.pos_reward = 0
+if "neg_reward" not in st.session_state: st.session_state.neg_reward = 0
+if "reward_trace" not in st.session_state: st.session_state.reward_trace = []
 
 def save_episode_data():
     summary = env.get_summary()
@@ -266,6 +269,9 @@ if st.sidebar.button("🔄 Full System Reset"):
     st.session_state.env = WarehouseEnv()
     st.session_state.state = st.session_state.env.get_state()
     st.session_state.total_reward = 0
+    st.session_state.pos_reward = 0
+    st.session_state.neg_reward = 0
+    st.session_state.reward_trace = []
     st.rerun()
 
 st.sidebar.markdown("---")
@@ -275,6 +281,9 @@ if st.sidebar.button("▶️ Execute Next Phase"):
         action = env.intelligent_action(robot_id)
         state, reward, done = env.step(robot_id, action)
         st.session_state.total_reward += reward
+        if reward > 0: st.session_state.pos_reward += reward
+        elif reward < 0: st.session_state.neg_reward += reward
+        st.session_state.reward_trace.append(reward)
         if done:
             save_episode_data()
             break
@@ -288,6 +297,9 @@ if st.sidebar.button("⏭️ Auto-Simulate (10 Phases)"):
             action = env.intelligent_action(robot_id)
             state, reward, done = env.step(robot_id, action)
             st.session_state.total_reward += reward
+            if reward > 0: st.session_state.pos_reward += reward
+            elif reward < 0: st.session_state.neg_reward += reward
+            st.session_state.reward_trace.append(reward)
             if done:
                 sim_done = True
                 break
@@ -375,6 +387,27 @@ with col_chart:
             if i % 2 == 0: s_col1.markdown(f"**{k}:** `{v}`")
             else: s_col2.markdown(f"**{k}:** `{v}`")
     else: st.info("Finish an episode for summary.")
+
+    # --- REWARD TRACKER SECTION ---
+    st.header("🎯 Live Reward Tracker")
+    r_c1, r_c2, r_c3 = st.columns(3)
+    r_c1.metric("Total", f"{st.session_state.total_reward:.1f}")
+    r_c2.metric("Positive", f"{st.session_state.pos_reward:.1f}")
+    r_c3.metric("Negative", f"{st.session_state.neg_reward:.1f}")
+    
+    if st.session_state.reward_trace:
+        trace = st.session_state.reward_trace[-50:]
+        fig_rew, ax_rew = plt.subplots(figsize=(6, 3))
+        colors = ['#10b981' if r > 0 else '#f43f5e' for r in trace]
+        ax_rew.bar(range(len(trace)), trace, color=colors)
+        ax_rew.set_facecolor('none')
+        fig_rew.patch.set_facecolor('none')
+        ax_rew.spines['bottom'].set_color('#94a3b8')
+        ax_rew.spines['left'].set_color('#94a3b8')
+        ax_rew.tick_params(colors='#94a3b8', labelsize=8)
+        ax_rew.set_title("Reward per Step (Last 50)", color='#38bdf8', fontsize=10)
+        st.pyplot(fig_rew, width='content')
+        plt.close(fig_rew)
 
     st.header("📡 Command Logs")
     for log in reversed(st.session_state.state.get("logs", [])):
