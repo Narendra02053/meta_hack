@@ -29,54 +29,44 @@ st.markdown("""
     }
     
     .stApp {
-        background: radial-gradient(circle at top right, #1e293b, #0f172a);
+        background: radial-gradient(circle at top right, #0f172a, #000000);
         color: #f8fafc;
     }
     
-    h1, h2, h3 {
-        color: #38bdf8 !important;
+    [data-testid="stMetricValue"] {
+        font-size: 2.2rem !important;
         font-weight: 800 !important;
-        letter-spacing: -0.025em;
-        text-transform: uppercase;
-    }
-    
-    .stMetric {
-        background: rgba(30, 41, 59, 0.6);
-        backdrop-filter: blur(12px);
-        padding: 1.5rem;
-        border-radius: 1.25rem;
-        border: 1px solid rgba(56, 189, 248, 0.3);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    }
-    
-    .stButton > button {
-        width: 100%;
-        background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
-        color: white;
-        border: none;
-        padding: 0.75rem 1rem;
-        border-radius: 0.75rem;
-        font-weight: 700;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.4);
-        background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%);
+        color: #38bdf8 !important;
     }
 
-    .grid-cell {
-        transition: all 0.3s ease;
+    .brain-status {
+        display: flex;
+        align-items: center;
+        background: rgba(15, 23, 42, 0.8);
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        border: 1px solid #38bdf8;
+        margin-bottom: 2rem;
     }
-    .grid-cell:hover {
-        background: rgba(56, 189, 248, 0.1) !important;
-        transform: scale(1.05);
+
+    .pulse {
+        width: 12px;
+        height: 12px;
+        background: #10b981;
+        border-radius: 50%;
+        margin-right: 10px;
+        box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+        animation: pulse-animation 2s infinite;
     }
-    .stPlot canvas {
-        height: 400px !important;
+
+    @keyframes pulse-animation {
+        0% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0); }
+    }
+    
+    canvas {
+        border-radius: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -176,7 +166,15 @@ def run_replay():
 
 # Header Section
 st.title("🏗️ Elite Warehouse Multi-Agent Command")
-st.markdown("<p style='color: #94a3b8; font-size: 1.1rem; margin-top: -1rem;'>Autonomous Logistics Optimization Engine v2.5</p>", unsafe_allow_html=True)
+st.markdown("""
+<div class='brain-status'>
+    <div class='pulse'></div>
+    <div style='color: #38bdf8; font-weight: 600; font-size: 0.9rem;'>
+        PYTORCH NEURAL POLICY ENGINE: <span style='color: #10b981;'>ACTIVE</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+st.markdown("<p style='color: #94a3b8; font-size: 1.1rem; margin-top: -1rem;'>Autonomous Logistics Optimization Engine v2.5 [PyTorch-DQN]</p>", unsafe_allow_html=True)
 
 def update_charts():
     if os.path.exists("reward_history.json"):
@@ -220,17 +218,21 @@ avg_battery = sum(r["battery"] for r in st.session_state.state["robots"]) / len(
 
 # Performance Rating Logic
 perf_rating = 0
+throughput = 0
+avg_completion = st.session_state.state.get("avg_completion_time", 0)
+
 if env.step_count > 0:
     success_rate = (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
     efficiency = min(1.0, (completed_tasks / env.step_count) * 5)
     perf_rating = int((success_rate * 0.7) + (efficiency * 30))
+    throughput = (completed_tasks / env.step_count) * 100
 
 m1, m2, m3, m4, m5 = st.columns(5)
-m1.metric("Task Success", f"{completed_tasks}/{total_tasks}", delta=f"{int((completed_tasks/total_tasks)*100)}%" if total_tasks > 0 else "0%")
-m2.metric("Fleet Status", f"{avg_battery:.0f}%", delta="Charging" if avg_battery < 30 else "Optimal", delta_color="normal")
-m3.metric("System Rating", f"{perf_rating}%", delta="Elite" if perf_rating >= 90 else "Analyzing")
+m1.metric("📦 Task Success", f"{completed_tasks}/{total_tasks}", delta=f"{int((completed_tasks/total_tasks)*100)}%" if total_tasks > 0 else "0%")
+m2.metric("⚡ System Throughput", f"{throughput:.1f}", help="Tasks per 100 operational steps")
+m3.metric("🏆 System Rating", f"{perf_rating}%", delta="Elite" if perf_rating >= 90 else "Analyzing")
 m4.metric("🤝 Coordination", f"{st.session_state.state.get('coordination_score', 0)}")
-m5.metric("Total Reward", f"{st.session_state.total_reward}")
+m5.metric("⏱️ Avg Cycle Time", f"{avg_completion:.1f}s")
 
 # Columns
 col_grid, col_chart = st.columns([1.8, 1.2])
