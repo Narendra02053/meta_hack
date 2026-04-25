@@ -47,7 +47,7 @@ Our PyTorch agent demonstrates significant performance gains over heuristic base
 ## 🚀 Live Deployment & Visuals
 
 🔗 **Interactive Dashboard (Hugging Face)**: [Launch Project](https://huggingface.co/spaces/kottakur/warehouse-priority-env)  
-🔗 **Reproducible Research (Google Colab)**: [View Notebook](https://colab.research.google.com/drive/1hmpR4uRP3JKv2_xNEKLdOlbC5adH1zQ2)  
+🔗 **Reproducible Research (Google Colab)**: [View Notebook](https://colab.research.google.com/drive/1yAKAoVT_yDQAVVhbNvQhS7oqloQkm9nI#scrollTo=V7SB1zRTgyY7)  
 
 ---
 
