@@ -75,6 +75,9 @@ st.markdown("""
         background: rgba(56, 189, 248, 0.1) !important;
         transform: scale(1.05);
     }
+    canvas {
+        height: 400px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -229,6 +232,7 @@ if st.sidebar.button("▶️ Execute Next Phase"):
             save_episode_data()
             break
     st.session_state.state = env.get_state()
+    update_charts()
 
 if st.sidebar.button("⏭️ Auto-Simulate (10 Phases)"):
     for _ in range(10):
@@ -242,9 +246,12 @@ if st.sidebar.button("⏭️ Auto-Simulate (10 Phases)"):
                 break
         if sim_done:
             save_episode_data()
+            st.session_state.state = env.get_state()
+            update_charts()
             break
+        st.session_state.state = env.get_state()
+        update_charts()
         time.sleep(0.1)
-    st.session_state.state = env.get_state()
 
 if st.sidebar.button("📦 Emergency Task Injection"):
     st.session_state.env.add_random_task()
@@ -309,26 +316,51 @@ with col_grid:
 # Main Charts & Logs
 with col_chart:
     st.header("📈 Efficiency Matrix")
+    eff_container = st.container(height=420)
+    eff_chart_placeholder = eff_container.empty()
+    
+    st.header("🧠 Strategy Allocation")
+    strategy_container = st.container(height=420)
+    strategy_chart_placeholder = strategy_container.empty()
+
+def update_charts():
     if os.path.exists("reward_history.json"):
         with open("reward_history.json", "r") as f:
             try:
                 reward_history = json.load(f)
-                fig, ax = plt.subplots(figsize=(6, 3))
+                fig, ax = plt.subplots()
+                fig.set_size_inches(8, 4)
                 fig.patch.set_facecolor('none')
                 ax.set_facecolor('none')
                 ax.plot(reward_history, color='#38bdf8', linewidth=3, marker='o', markersize=6)
                 ax.spines['bottom'].set_color('#94a3b8')
                 ax.spines['left'].set_color('#94a3b8')
                 ax.tick_params(colors='#94a3b8')
-                st.pyplot(fig, clear_figure=True)
-            except: st.info("Awaiting telemetry...")
+                eff_chart_placeholder.pyplot(fig, use_container_width=False)
+                plt.close(fig)
+            except: pass
 
-    st.header("🧠 Strategy Allocation")
     usage = st.session_state.state.get("strategy_usage", {})
     if usage:
         df_usage = pd.DataFrame(list(usage.items()), columns=["Strategy", "Usage"])
-        st.bar_chart(df_usage.set_index("Strategy"))
+        fig2, ax2 = plt.subplots()
+        fig2.set_size_inches(6, 4)
+        fig2.patch.set_facecolor('none')
+        ax2.set_facecolor('none')
+        ax2.bar(df_usage["Strategy"], df_usage["Usage"], color='#38bdf8')
+        ax2.spines['bottom'].set_color('#94a3b8')
+        ax2.spines['left'].set_color('#94a3b8')
+        ax2.tick_params(colors='#94a3b8', labelsize=8)
+        strategy_chart_placeholder.pyplot(fig2, use_container_width=False)
+        plt.close(fig2)
+        
+        history_file = "strategy_usage_history.json"
+        with open(history_file, "w") as f:
+            json.dump(usage, f)
 
+update_charts()
+
+with col_chart:
     st.header("📊 Episode Performance Summary")
     if os.path.exists("episode_summary.json"):
         with open("episode_summary.json", "r") as f:
