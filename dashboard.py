@@ -359,7 +359,7 @@ with col_grid:
     st.dataframe(pd.DataFrame(task_list), use_container_width=True, hide_index=True)
 
 # Main Grid Rendering
-with col_grid:
+
 
 update_charts()
 
