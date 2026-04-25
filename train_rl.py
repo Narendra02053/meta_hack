@@ -64,8 +64,14 @@ def main():
     
     print("\nTraining complete!")
     agent.save_q_table("q_table.json")
+    
+    # Save strategy usage from the final training environment
+    import json
+    with open("strategy_usage_history.json", "w") as f:
+        json.dump(env.strategy_usage, f)
+        
     print("Final Q-table size:", len(agent.q_table))
-    print("Training curve saved as 'rl_training_curve.png' and model as 'q_table.json'")
+    print("Training curve saved as 'rl_training_curve.png', model as 'q_table.json', and strategy history.")
 
 if __name__ == "__main__":
     main()

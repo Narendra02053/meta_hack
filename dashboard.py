@@ -90,6 +90,46 @@ if "state" not in st.session_state:
 if "total_reward" not in st.session_state:
     st.session_state.total_reward = 0
 
+def save_episode_data():
+    summary = env.get_summary()
+    with open("episode_summary.json", "w") as f:
+        json.dump(summary, f, indent=4)
+    
+    with open("episode_history.json", "w") as f:
+        json.dump(env.episode_history, f, indent=4)
+
+def run_replay():
+    if not os.path.exists("episode_history.json"):
+        st.sidebar.error("No history found.")
+        return
+    
+    with open("episode_history.json", "r") as f:
+        history = json.load(f)
+    
+    replay_placeholder = st.empty()
+    status_placeholder = st.sidebar.empty()
+    
+    for i, step_data in enumerate(history):
+        status_placeholder.info(f"Replaying Step {i+1}/{len(history)} (Robot {step_data['robot_id']+1}: {step_data['action']})")
+        
+        # We need a temporary mock env object to reuse render_grid
+        class MockEnv:
+            def __init__(self, state):
+                self.state = state
+                self.grid_size = (5, 5)
+                self.charging_stations = [(0, 0), (4, 4)]
+                self.obstacles = state.get("obstacles", [])
+            def get_state(self): return self.state
+            
+        mock_env = MockEnv(step_data["state"])
+        replay_placeholder.markdown(render_grid(mock_env), unsafe_allow_html=True)
+        time.sleep(0.3)
+    
+    status_placeholder.success("Replay Complete!")
+    time.sleep(2)
+    status_placeholder.empty()
+    st.rerun()
+
 # Header Section
 st.title("🏗️ Elite Warehouse Multi-Agent Command")
 st.markdown("<p style='color: #94a3b8; font-size: 1.1rem; margin-top: -1rem;'>Autonomous Logistics Optimization Engine v2.5</p>", unsafe_allow_html=True)
@@ -107,11 +147,12 @@ if env.step_count > 0:
     efficiency = min(1.0, (completed_tasks / env.step_count) * 5) # Normalized efficiency
     perf_rating = int((success_rate * 0.7) + (efficiency * 30))
 
-m1, m2, m3, m4 = st.columns(4)
+m1, m2, m3, m4, m5 = st.columns(5)
 m1.metric("Task Success", f"{completed_tasks}/{total_tasks}", delta=f"{int((completed_tasks/total_tasks)*100)}%")
 m2.metric("Fleet Status", f"{avg_battery:.0f}%", delta="Charging" if avg_battery < 30 else "Optimal", delta_color="normal")
 m3.metric("System Rating", f"{perf_rating}%", delta="Elite" if perf_rating >= 90 else "Analyzing")
-m4.metric("Total Reward", f"{st.session_state.total_reward}")
+m4.metric("🤝 Coordination", f"{st.session_state.state.get('coordination_score', 0)}")
+m5.metric("Total Reward", f"{st.session_state.total_reward}")
 
 # 1. Create Fixed Layout Columns Once
 col_grid, col_chart = st.columns([1.8, 1.2])
@@ -139,6 +180,7 @@ if st.sidebar.button("🔄 Full System Reset"):
         with open(history_file, "w") as f:
             json.dump(history, f)
             
+    save_episode_data()
     st.session_state.env = WarehouseEnv()
     st.session_state.state = st.session_state.env.get_state()
     st.session_state.total_reward = 0
@@ -155,16 +197,38 @@ if st.sidebar.button("▶️ Execute Next Phase"):
 
 if st.sidebar.button("⏭️ Auto-Simulate (10 Phases)"):
     for _ in range(10):
+        sim_done = False
         for robot_id in range(len(env.robots)):
             action = env.intelligent_action(robot_id)
             state, reward, done = env.step(robot_id, action)
             st.session_state.total_reward += reward
+            if done:
+                sim_done = True
+                break
+        if sim_done:
+            save_episode_data()
+            break
         time.sleep(0.1)
     st.session_state.state = env.get_state()
 
 if st.sidebar.button("📦 Emergency Task Injection"):
     st.session_state.env.add_random_task()
     st.session_state.state = st.session_state.env.get_state()
+
+if st.sidebar.button("🎬 Replay Last Episode"):
+    run_replay()
+
+if st.sidebar.button("⚡ Peak Load Test"):
+    st.sidebar.warning("Peak Load Mode Activated")
+    import random
+    num_tasks = random.randint(5, 8)
+    for _ in range(num_tasks):
+        st.session_state.env.add_random_task()
+        # Overwrite last task's deadline for peak load simulation
+        st.session_state.env.tasks[-1]["deadline"] = random.randint(5, 15)
+    st.session_state.env.logs.append(f"PEAK LOAD: {num_tasks} tasks injected!")
+    st.session_state.state = st.session_state.env.get_state()
+    st.rerun()
 
 # --- Grid Logic ---
 def render_grid(env):
@@ -274,6 +338,32 @@ with chart_container:
                 st.pyplot(fig, clear_figure=True)
             except Exception:
                 st.info("Awaiting telemetry stream...")
+    
+    st.header("🧠 Strategy Allocation")
+    usage = st.session_state.state.get("strategy_usage", {})
+    if usage:
+        df_usage = pd.DataFrame(list(usage.items()), columns=["Strategy", "Usage"])
+        st.bar_chart(df_usage.set_index("Strategy"))
+        
+        # Save to history for learning visualization
+        history_file = "strategy_usage_history.json"
+        with open(history_file, "w") as f:
+            json.dump(usage, f)
+
+    # 📊 Episode Performance Summary Panel
+    st.header("📊 Episode Performance Summary")
+    summary_file = "episode_summary.json"
+    if os.path.exists(summary_file):
+        with open(summary_file, "r") as f:
+            summary_data = json.load(f)
+        
+        # Display as a clean grid of metrics
+        s_col1, s_col2 = st.columns(2)
+        for i, (k, v) in enumerate(summary_data.items()):
+            if i % 2 == 0: s_col1.markdown(f"**{k}:** `{v}`")
+            else: s_col2.markdown(f"**{k}:** `{v}`")
+    else:
+        st.info("Complete an episode to view summary.")
 
 if completed_tasks == total_tasks:
     st.balloons()

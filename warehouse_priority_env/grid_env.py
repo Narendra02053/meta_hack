@@ -16,11 +16,6 @@ class GridWarehouseEnv:
         self.total_reward = 0
         self.step_count = 0
         self.tasks_completed = 0
-        self.rl_actions = [
-            "priority_first",
-            "nearest_first",
-            "deadline_first"
-        ]
         self.reset()
 
     def initialize_tasks(self):
@@ -95,34 +90,6 @@ class GridWarehouseEnv:
             "event_log": self.event_log[-20:],
         }
 
-    def priority_value(self, priority):
-        return self.priority_weights.get(priority, 0)
-
-    def get_rl_state(self):
-        pending_tasks = len(
-            [t for t in self.tasks if not t["completed"] and not t["expired"]]
-        )
-
-        highest_priority = max(
-            [self.priority_value(t["priority"])
-             for t in self.tasks
-             if not t["completed"] and not t["expired"]],
-            default=0
-        )
-
-        min_deadline = min(
-            [t["deadline"]
-             for t in self.tasks
-             if not t["completed"] and not t["expired"]],
-            default=0
-        )
-
-        return (
-            pending_tasks,
-            highest_priority,
-            min_deadline
-        )
-
     def find_shortest_path(self, start, goal, obstacles, other_robots, grid_size):
         if start == goal:
             return []
@@ -146,7 +113,7 @@ class GridWarehouseEnv:
                         queue.append(((nx, ny), path + [(nx, ny)]))
         return []
 
-    def intelligent_action(self, robot_id, rl_action=None):
+    def intelligent_action(self, robot_id):
         robot = self.robots[robot_id]
         rx, ry = robot["position"]
 
@@ -155,6 +122,7 @@ class GridWarehouseEnv:
 
         if robot["battery"] < 25:
             self._log_event(f"Robot {robot['id']} battery low")
+        if robot["battery"] < 25:
             nearest_station = min(self.charging_stations, key=lambda s: abs(s[0] - rx) + abs(s[1] - ry))
             target = nearest_station
             action_at_target = "wait"
@@ -179,30 +147,21 @@ class GridWarehouseEnv:
                     and not t.get("expired", t.get("failed", False))
                 ]
                 if available_tasks:
-                    if rl_action == "priority_first":
-                        best_task = max(available_tasks, key=lambda t: self.priority_value(t["priority"]))
-                    elif rl_action == "nearest_first":
-                        best_task = min(available_tasks, key=lambda t: abs(rx - t["pickup"][0]) + abs(ry - t["pickup"][1]))
-                    elif rl_action == "deadline_first":
-                        best_task = min(available_tasks, key=lambda t: t["deadline"])
-                    else:
-                        # Fallback to existing logic
-                        max_deadline = 30
-                        priority_score_map = {"HIGH": 50, "NORMAL": 30, "LOW": 10}
+                    max_deadline = 30
+                    priority_score_map = {"HIGH": 50, "NORMAL": 30, "LOW": 10}
 
-                        def urgency_score(task):
-                            tx, ty = task["pickup"]
-                            distance_penalty = abs(rx - tx) + abs(ry - ty)
-                            priority_score = priority_score_map.get(task.get("priority", "NORMAL"), 30)
-                            current_deadline = int(task.get("deadline", max_deadline))
-                            deadline_score = max_deadline - current_deadline
-                            return priority_score + deadline_score - distance_penalty
+                    def urgency_score(task):
+                        tx, ty = task["pickup"]
+                        distance_penalty = abs(rx - tx) + abs(ry - ty)
+                        priority_score = priority_score_map.get(task.get("priority", "NORMAL"), 30)
+                        current_deadline = int(task.get("deadline", max_deadline))
+                        deadline_score = max_deadline - current_deadline
+                        return priority_score + deadline_score - distance_penalty
 
-                        best_task = max(available_tasks, key=urgency_score)
-
+                    best_task = max(available_tasks, key=urgency_score)
                     best_task["assigned"] = robot["id"]
                     active_task = best_task
-                    self.logs.append(f"Agent {robot['id']+1} assigned {best_task['priority']} Task #{best_task['id']} using {rl_action or 'urgency_score'}.")
+                    self.logs.append(f"Agent {robot['id']+1} auto-assigned {best_task['priority']} Task #{best_task['id']}.")
                     self._log_event(f"Robot {robot['id']} assigned Task {best_task['id']}")
 
             if active_task:
