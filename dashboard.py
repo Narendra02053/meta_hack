@@ -75,7 +75,7 @@ st.markdown("""
         background: rgba(56, 189, 248, 0.1) !important;
         transform: scale(1.05);
     }
-    canvas {
+    .stPlot canvas {
         height: 400px !important;
     }
 </style>
