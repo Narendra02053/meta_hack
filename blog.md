@@ -204,6 +204,8 @@ This introduces spatial reasoning challenges and improves navigation realism.
 
 One of the most important aspects of intelligent systems is visibility.
 
+![Elite Warehouse Dashboard Preview](images/dashboard_preview.png)
+
 Users must understand what the system is doing.
 
 To achieve this, we developed an interactive dashboard that displays:
