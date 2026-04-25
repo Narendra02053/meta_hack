@@ -178,6 +178,41 @@ def run_replay():
 st.title("🏗️ Elite Warehouse Multi-Agent Command")
 st.markdown("<p style='color: #94a3b8; font-size: 1.1rem; margin-top: -1rem;'>Autonomous Logistics Optimization Engine v2.5</p>", unsafe_allow_html=True)
 
+def update_charts():
+    if os.path.exists("reward_history.json"):
+        with open("reward_history.json", "r") as f:
+            try:
+                reward_history = json.load(f)
+                fig, ax = plt.subplots()
+                fig.set_size_inches(8, 4)
+                fig.patch.set_facecolor('none')
+                ax.set_facecolor('none')
+                ax.plot(reward_history, color='#38bdf8', linewidth=3, marker='o', markersize=6)
+                ax.spines['bottom'].set_color('#94a3b8')
+                ax.spines['left'].set_color('#94a3b8')
+                ax.tick_params(colors='#94a3b8')
+                eff_chart_placeholder.pyplot(fig, width='content')
+                plt.close(fig)
+            except: pass
+
+    usage = st.session_state.state.get("strategy_usage", {})
+    if usage:
+        df_usage = pd.DataFrame(list(usage.items()), columns=["Strategy", "Usage"])
+        fig2, ax2 = plt.subplots()
+        fig2.set_size_inches(6, 4)
+        fig2.patch.set_facecolor('none')
+        ax2.set_facecolor('none')
+        ax2.bar(df_usage["Strategy"], df_usage["Usage"], color='#38bdf8')
+        ax2.spines['bottom'].set_color('#94a3b8')
+        ax2.spines['left'].set_color('#94a3b8')
+        ax2.tick_params(colors='#94a3b8', labelsize=8)
+        strategy_chart_placeholder.pyplot(fig2, width='content')
+        plt.close(fig2)
+        
+        history_file = "strategy_usage_history.json"
+        with open(history_file, "w") as f:
+            json.dump(usage, f)
+
 # Metrics Section
 completed_tasks = sum(1 for t in st.session_state.state["tasks"] if t["completed"])
 total_tasks = len(st.session_state.state["tasks"])
@@ -199,6 +234,16 @@ m5.metric("Total Reward", f"{st.session_state.total_reward}")
 
 # Columns
 col_grid, col_chart = st.columns([1.8, 1.2])
+
+# Placeholders for stable chart rendering
+with col_chart:
+    st.header("📈 Efficiency Matrix")
+    eff_container = st.container(height=420)
+    eff_chart_placeholder = eff_container.empty()
+    
+    st.header("🧠 Strategy Allocation")
+    strategy_container = st.container(height=420)
+    strategy_chart_placeholder = strategy_container.empty()
 
 # Sidebar Controls
 st.sidebar.header("🕹️ Mission Control")
@@ -313,50 +358,8 @@ with col_grid:
         })
     st.dataframe(pd.DataFrame(task_list), use_container_width=True, hide_index=True)
 
-# Main Charts & Logs
-with col_chart:
-    st.header("📈 Efficiency Matrix")
-    eff_container = st.container(height=420)
-    eff_chart_placeholder = eff_container.empty()
-    
-    st.header("🧠 Strategy Allocation")
-    strategy_container = st.container(height=420)
-    strategy_chart_placeholder = strategy_container.empty()
-
-def update_charts():
-    if os.path.exists("reward_history.json"):
-        with open("reward_history.json", "r") as f:
-            try:
-                reward_history = json.load(f)
-                fig, ax = plt.subplots()
-                fig.set_size_inches(8, 4)
-                fig.patch.set_facecolor('none')
-                ax.set_facecolor('none')
-                ax.plot(reward_history, color='#38bdf8', linewidth=3, marker='o', markersize=6)
-                ax.spines['bottom'].set_color('#94a3b8')
-                ax.spines['left'].set_color('#94a3b8')
-                ax.tick_params(colors='#94a3b8')
-                eff_chart_placeholder.pyplot(fig, use_container_width=False)
-                plt.close(fig)
-            except: pass
-
-    usage = st.session_state.state.get("strategy_usage", {})
-    if usage:
-        df_usage = pd.DataFrame(list(usage.items()), columns=["Strategy", "Usage"])
-        fig2, ax2 = plt.subplots()
-        fig2.set_size_inches(6, 4)
-        fig2.patch.set_facecolor('none')
-        ax2.set_facecolor('none')
-        ax2.bar(df_usage["Strategy"], df_usage["Usage"], color='#38bdf8')
-        ax2.spines['bottom'].set_color('#94a3b8')
-        ax2.spines['left'].set_color('#94a3b8')
-        ax2.tick_params(colors='#94a3b8', labelsize=8)
-        strategy_chart_placeholder.pyplot(fig2, use_container_width=False)
-        plt.close(fig2)
-        
-        history_file = "strategy_usage_history.json"
-        with open(history_file, "w") as f:
-            json.dump(usage, f)
+# Main Grid Rendering
+with col_grid:
 
 update_charts()
 
