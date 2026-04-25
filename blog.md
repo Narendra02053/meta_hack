@@ -45,6 +45,21 @@ This makes the environment unpredictable — just like a real warehouse.
 
 ---
 
+# System Architecture — How the Intelligence is Structured
+
+To build a robust and scalable learning environment, we followed a modular system architecture. This ensures that the user interface, backend logic, and reinforcement learning components can work together seamlessly.
+
+![Multi-Agent Warehouse System Architecture](images/architecture_diagram.png)
+
+The system is divided into several key modules:
+1. **User Interface (Streamlit)**: Provides real-time visualization and control.
+2. **Backend API (FastAPI)**: Manages simulation steps and environment state.
+3. **Environment Logic**: Handles physics, collisions, and task management.
+4. **Agent Intelligence**: Core decision-making logic where RL strategies are evaluated.
+5. **Reward System**: Calculates feedback based on task success and operational efficiency.
+
+---
+
 # Introducing Task Priorities — Handling Urgency
 
 Not all deliveries are equal.
