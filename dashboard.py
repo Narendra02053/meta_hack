@@ -85,6 +85,8 @@ if "total_reward" not in st.session_state:
 if "pos_reward" not in st.session_state: st.session_state.pos_reward = 0
 if "neg_reward" not in st.session_state: st.session_state.neg_reward = 0
 if "reward_trace" not in st.session_state: st.session_state.reward_trace = []
+if "last_reward" not in st.session_state: st.session_state.last_reward = None
+if "reward_log" not in st.session_state: st.session_state.reward_log = []
 
 def save_episode_data():
     summary = env.get_summary()
@@ -237,6 +239,52 @@ m3.metric("🏆 System Rating", f"{perf_rating}%", delta="Elite" if perf_rating 
 m4.metric("🤝 Coordination", f"{st.session_state.state.get('coordination_score', 0)}")
 m5.metric("⏱️ Avg Cycle Time", f"{avg_completion:.1f}s")
 
+# ── ⚡ Reward Feed ─────────────────────────────────────────────
+def _reward_label(r):
+    if r >= 150: return "✅ All tasks complete!"
+    elif r >= 60: return "✅ Task delivered"
+    elif r >= 15: return "✅ Item picked up"
+    elif r >= 10: return "✅ Recharged / Priority bonus"
+    elif r == -1: return "⚙️ Movement"
+    elif r <= -20: return "❌ Collision / Deadline missed"
+    elif r <= -10: return "❌ Obstacle hit / Battery dead"
+    else: return "⚙️ Step penalty"
+
+with st.container():
+    st.markdown("### ⚡ Reward Feed")
+    feed_left, feed_right = st.columns([1, 2])
+    with feed_left:
+        if st.session_state.last_reward is not None:
+            lr = st.session_state.last_reward
+            color = "#10b981" if lr >= 0 else "#f43f5e"
+            sign = "+" if lr >= 0 else ""
+            st.markdown(f"""
+            <div style='background:rgba(15,23,42,0.7);border:1px solid {color};
+                        border-radius:1rem;padding:1rem;text-align:center;'>
+                <div style='font-size:0.8rem;color:#94a3b8;'>LAST REWARD</div>
+                <div style='font-size:2.5rem;font-weight:800;color:{color};'>{sign}{lr:.0f}</div>
+            </div>""", unsafe_allow_html=True)
+        else:
+            st.info("Run a step to see rewards.")
+    with feed_right:
+        if st.session_state.reward_log:
+            for entry in reversed(st.session_state.reward_log[-10:]):
+                r = entry["reward"]
+                color = "#10b981" if r >= 0 else "#f43f5e"
+                sign = "+" if r >= 0 else ""
+                st.markdown(f"""
+                <div style='display:flex;justify-content:space-between;
+                            background:rgba(15,23,42,0.5);padding:0.3rem 0.8rem;
+                            border-radius:0.5rem;margin-bottom:4px;
+                            border-left:3px solid {color};'>
+                    <span style='color:{color};font-weight:700;font-family:monospace;'>{sign}{r:.0f}</span>
+                    <span style='color:#94a3b8;font-size:0.85rem;'>{entry['label']}</span>
+                </div>""", unsafe_allow_html=True)
+        else:
+            st.caption("No reward events yet.")
+st.markdown("---")
+# ──────────────────────────────────────────────────────────────
+
 # Columns
 col_grid, col_chart = st.columns([1.8, 1.2])
 
@@ -272,6 +320,8 @@ if st.sidebar.button("🔄 Full System Reset"):
     st.session_state.pos_reward = 0
     st.session_state.neg_reward = 0
     st.session_state.reward_trace = []
+    st.session_state.last_reward = None
+    st.session_state.reward_log = []
     st.rerun()
 
 st.sidebar.markdown("---")
@@ -284,6 +334,8 @@ if st.sidebar.button("▶️ Execute Next Phase"):
         if reward > 0: st.session_state.pos_reward += reward
         elif reward < 0: st.session_state.neg_reward += reward
         st.session_state.reward_trace.append(reward)
+        st.session_state.last_reward = reward
+        st.session_state.reward_log = (st.session_state.reward_log + [{"reward": reward, "label": _reward_label(reward)}])[-10:]
         if done:
             save_episode_data()
             break
@@ -300,6 +352,8 @@ if st.sidebar.button("⏭️ Auto-Simulate (10 Phases)"):
             if reward > 0: st.session_state.pos_reward += reward
             elif reward < 0: st.session_state.neg_reward += reward
             st.session_state.reward_trace.append(reward)
+            st.session_state.last_reward = reward
+            st.session_state.reward_log = (st.session_state.reward_log + [{"reward": reward, "label": _reward_label(reward)}])[-10:]
             if done:
                 sim_done = True
                 break
