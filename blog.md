@@ -205,6 +205,7 @@ This introduces spatial reasoning challenges and improves navigation realism.
 One of the most important aspects of intelligent systems is visibility.
 
 ![Elite Warehouse Dashboard Preview](images/dashboard_preview.png)
+![Fulfillment Matrix and Performance Metrics](images/performance_metrics.png)
 
 Users must understand what the system is doing.
 
