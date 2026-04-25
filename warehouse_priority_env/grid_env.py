@@ -16,6 +16,21 @@ class GridWarehouseEnv:
         self.total_reward = 0
         self.step_count = 0
         self.tasks_completed = 0
+        self.rl_actions = [
+            "priority_first",
+            "nearest_first",
+            "deadline_first"
+        ]
+        self.collisions = 0
+        self.successful_tasks_without_conflict = 0
+        self.congestion_avoided_count = 0
+        self.strategy_usage = {a: 0 for a in self.rl_actions}
+        self.emergency_tasks_saved = 0
+        self.task_spawn_times = {} 
+        self.task_completion_durations = []
+        self.episode_history = []
+        self.current_strategy = "None"
+        self.strategy_reason = "System Idle"
         self.reset()
 
     def initialize_tasks(self):
@@ -62,12 +77,25 @@ class GridWarehouseEnv:
         self.total_reward = 0
         self.step_count = 0
         self.tasks_completed = 0
+        self.collisions = 0
+        self.successful_tasks_without_conflict = 0
+        self.congestion_avoided_count = 0
+        self.strategy_usage = {a: 0 for a in self.rl_actions}
+        self.emergency_tasks_saved = 0
+        self.task_spawn_times = {t["id"]: 0 for t in self.tasks}
+        self.task_completion_durations = []
+        self.episode_history = []
+        self.current_strategy = "None"
+        self.strategy_reason = "System Reset"
         return self.get_state()
 
     def _log_event(self, message: str):
         self.event_log.append(message)
         if len(self.event_log) > 20:
             self.event_log = self.event_log[-20:]
+
+    def priority_value(self, priority):
+        return self.priority_weights.get(priority, 0)
 
     def get_state(self):
         congestion_zones = []
@@ -88,7 +116,60 @@ class GridWarehouseEnv:
             "congestion_zones": congestion_zones,
             "logs": self.logs[-5:],
             "event_log": self.event_log[-20:],
+            "collisions": self.collisions,
+            "coordination_score": round(self.tasks_completed / (self.collisions + 1), 2),
+            "strategy_usage": self.strategy_usage,
+            "emergency_tasks_saved": self.emergency_tasks_saved,
+            "avg_completion_time": round(sum(self.task_completion_durations) / len(self.task_completion_durations), 2) if self.task_completion_durations else 0,
+            "tasks_expired": sum(1 for t in self.tasks if t["expired"]),
+            "current_strategy": self.current_strategy,
+            "strategy_reason": self.strategy_reason,
+            "pending_tasks": len([t for t in self.tasks if not t["completed"] and not t["expired"]]),
+            "min_deadline": min([t["deadline"] for t in self.tasks if not t["completed"] and not t["expired"]], default=0),
+            "highest_priority": max([self.priority_value(t["priority"]) for t in self.tasks if not t["completed"] and not t["expired"]], default=0),
         }
+
+    def get_summary(self):
+        perf_rating = 0
+        if self.step_count > 0:
+            total_tasks = len(self.tasks)
+            success_rate = (self.tasks_completed / total_tasks) * 100 if total_tasks > 0 else 0
+            efficiency = min(1.0, (self.tasks_completed / self.step_count) * 5)
+            perf_rating = int((success_rate * 0.7) + (efficiency * 30))
+
+        return {
+            "Total Tasks Completed": self.tasks_completed,
+            "Tasks Expired": sum(1 for t in self.tasks if t["expired"]),
+            "Emergency Tasks Saved": self.emergency_tasks_saved,
+            "Average Completion Time": round(sum(self.task_completion_durations) / len(self.task_completion_durations), 2) if self.task_completion_durations else 0,
+            "Coordination Score": round(self.tasks_completed / (self.collisions + 1), 2),
+            "Final Efficiency Score": f"{perf_rating}%"
+        }
+
+    def get_rl_state(self):
+        pending_tasks = len(
+            [t for t in self.tasks if not t["completed"] and not t["expired"]]
+        )
+
+        highest_priority = max(
+            [self.priority_value(t["priority"])
+             for t in self.tasks
+             if not t["completed"] and not t["expired"]],
+            default=0
+        )
+
+        min_deadline = min(
+            [t["deadline"]
+             for t in self.tasks
+             if not t["completed"] and not t["expired"]],
+            default=0
+        )
+
+        return (
+            pending_tasks,
+            highest_priority,
+            min_deadline
+        )
 
     def find_shortest_path(self, start, goal, obstacles, other_robots, grid_size):
         if start == goal:
@@ -113,7 +194,7 @@ class GridWarehouseEnv:
                         queue.append(((nx, ny), path + [(nx, ny)]))
         return []
 
-    def intelligent_action(self, robot_id):
+    def intelligent_action(self, robot_id, rl_action=None):
         robot = self.robots[robot_id]
         rx, ry = robot["position"]
 
@@ -122,7 +203,6 @@ class GridWarehouseEnv:
 
         if robot["battery"] < 25:
             self._log_event(f"Robot {robot['id']} battery low")
-        if robot["battery"] < 25:
             nearest_station = min(self.charging_stations, key=lambda s: abs(s[0] - rx) + abs(s[1] - ry))
             target = nearest_station
             action_at_target = "wait"
@@ -139,30 +219,72 @@ class GridWarehouseEnv:
             )
 
             if not active_task and not robot["carrying"]:
-                available_tasks = [
-                    t
-                    for t in self.tasks
-                    if t.get("assigned") is None
-                    and not t.get("completed", False)
-                    and not t.get("expired", t.get("failed", False))
+                # --- Emergency Recovery Logic ---
+                critical_tasks = [
+                    t for t in self.tasks
+                    if not t["completed"] and not t["expired"] and t["deadline"] <= 2
+                    and t["assigned"] is None
                 ]
-                if available_tasks:
-                    max_deadline = 30
-                    priority_score_map = {"HIGH": 50, "NORMAL": 30, "LOW": 10}
+                
+                if critical_tasks:
+                    best_task = min(critical_tasks, key=lambda t: t["deadline"])
+                    
+                    if self.current_strategy != "emergency_override":
+                        self.current_strategy = "emergency_override"
+                        self.strategy_reason = f"Critical Task {best_task['id']} (Deadline: {best_task['deadline']})"
+                        self.logs.append(f"Strategy switched to emergency_override")
 
-                    def urgency_score(task):
-                        tx, ty = task["pickup"]
-                        distance_penalty = abs(rx - tx) + abs(ry - ty)
-                        priority_score = priority_score_map.get(task.get("priority", "NORMAL"), 30)
-                        current_deadline = int(task.get("deadline", max_deadline))
-                        deadline_score = max_deadline - current_deadline
-                        return priority_score + deadline_score - distance_penalty
-
-                    best_task = max(available_tasks, key=urgency_score)
                     best_task["assigned"] = robot["id"]
+                    best_task["critical"] = True
                     active_task = best_task
-                    self.logs.append(f"Agent {robot['id']+1} auto-assigned {best_task['priority']} Task #{best_task['id']}.")
-                    self._log_event(f"Robot {robot['id']} assigned Task {best_task['id']}")
+                    self.logs.append(f"Emergency Mode Activated for Task {best_task['id']}")
+                    self._log_event(f"EMERGENCY: Robot {robot['id']} taking Task {best_task['id']}")
+                else:
+                    available_tasks = [
+                        t
+                        for t in self.tasks
+                        if t.get("assigned") is None
+                        and not t.get("completed", False)
+                        and not t.get("expired", t.get("failed", False))
+                    ]
+                    if available_tasks:
+                        if rl_action in self.rl_actions:
+                            self.strategy_usage[rl_action] += 1
+                            if self.current_strategy != rl_action:
+                                self.current_strategy = rl_action
+                                self.strategy_reason = "RL Agent optimized selection"
+                                self.logs.append(f"Strategy switched to {rl_action}")
+                        
+                        if rl_action == "priority_first":
+                            best_task = max(available_tasks, key=lambda t: self.priority_value(t["priority"]))
+                        elif rl_action == "nearest_first":
+                            best_task = min(available_tasks, key=lambda t: abs(rx - t["pickup"][0]) + abs(ry - t["pickup"][1]))
+                        elif rl_action == "deadline_first":
+                            best_task = min(available_tasks, key=lambda t: t["deadline"])
+                        else:
+                            # Fallback to existing logic
+                            if self.current_strategy != "urgency_heuristic":
+                                self.current_strategy = "urgency_heuristic"
+                                self.strategy_reason = "Standard operational logic"
+                                self.logs.append("Strategy switched to urgency_heuristic")
+                            
+                            max_deadline = 30
+                            priority_score_map = {"HIGH": 50, "NORMAL": 30, "LOW": 10}
+
+                            def urgency_score(task):
+                                tx, ty = task["pickup"]
+                                distance_penalty = abs(rx - tx) + abs(ry - ty)
+                                priority_score = priority_score_map.get(task.get("priority", "NORMAL"), 30)
+                                current_deadline = int(task.get("deadline", max_deadline))
+                                deadline_score = max_deadline - current_deadline
+                                return priority_score + deadline_score - distance_penalty
+
+                            best_task = max(available_tasks, key=urgency_score)
+
+                        best_task["assigned"] = robot["id"]
+                        active_task = best_task
+                        self.logs.append(f"Agent {robot['id']+1} assigned {best_task['priority']} Task #{best_task['id']} using {rl_action or 'urgency_score'}.")
+                        self._log_event(f"Robot {robot['id']} assigned Task {best_task['id']}")
 
             if active_task:
                 if robot["carrying"]:
@@ -252,6 +374,7 @@ class GridWarehouseEnv:
         if is_congested and action in ["move_up", "move_down", "move_left", "move_right"] and random.random() < 0.3:
             action = "wait"
             reward -= 1
+            self.congestion_avoided_count += 1
             self.logs.append(f"Agent {robot['id']+1} navigating tight corridor.")
 
         if action in ["move_up", "move_down", "move_left", "move_right"]:
@@ -287,6 +410,7 @@ class GridWarehouseEnv:
                     if len(new_robot_positions) != len(set(new_robot_positions)):
                         robot["position"] = previous_position
                         reward -= 20
+                        self.collisions += 1
                         self._log_event(f"Robot {robot['id']} collision avoided")
 
                     if any(abs(nx - rp[0]) + abs(ny - rp[1]) <= 1 for idx, rp in enumerate(new_robot_positions) if idx != robot_id):
@@ -308,6 +432,15 @@ class GridWarehouseEnv:
                 robot["carrying"] = False
                 active_task["completed"] = True
                 reward += 70
+
+                if active_task.get("critical"):
+                    reward += 10
+                    self.emergency_tasks_saved += 1
+                    self.logs.append(f"Critical Task #{active_task['id']} SAVED! +10 Bonus.")
+
+                # Track completion time
+                spawn_time = self.task_spawn_times.get(active_task["id"], 0)
+                self.task_completion_durations.append(self.step_count - spawn_time)
 
                 if active_task["priority"] == "HIGH":
                     reward += 10
@@ -332,6 +465,14 @@ class GridWarehouseEnv:
             self.total_reward += 150
             done = True
             self.logs.append("Simulation sequence finished.")
+
+        # Record history for replay
+        self.episode_history.append({
+            "step": self.step_count,
+            "robot_id": robot_id,
+            "action": action,
+            "state": self.get_state()
+        })
 
         return self.get_state(), reward, done
 
@@ -362,6 +503,6 @@ class GridWarehouseEnv:
                 "failed": False,
             }
         )
+        self.task_spawn_times[new_id] = self.step_count
         self.logs.append(f"New task #{new_id} spawned at {pickup}.")
         return self.get_state()
-
