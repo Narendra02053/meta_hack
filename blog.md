@@ -1,300 +1,209 @@
-# Building an Intelligent Multi-Agent Warehouse That Learns Under Pressure
+# We Built a Warehouse That Learns. Here's Why That Was Hard.
 
-## The Real Problem We Wanted to Solve
+India processes over 10 million e-commerce orders every single day.
+Behind every delivery is a warehouse — and inside that warehouse,
+robots are making split-second decisions that most people never 
+think about.
 
-Modern warehouses are no longer simple storage spaces. They operate under constant pressure.
+Which package is most urgent? Which path avoids a collision?
+When does a robot stop to recharge before it dies mid-task?
 
-Orders arrive continuously. Deadlines shrink. Priority shipments appear without warning. Multiple robots move simultaneously across tight spaces. One wrong decision can delay deliveries, create congestion, or waste energy.
-
-The biggest challenge in real-world warehouse logistics is not movement — it is **decision-making under uncertainty**.
-
-Typical problems faced in real warehouses include:
-
-* Urgent deliveries arriving unexpectedly
-* Multiple robots competing for the same paths
-* Deadlines forcing rapid decisions
-* Congestion slowing down operations
-* System overload during peak demand
-* Inefficient task selection reducing productivity
-
-Most traditional systems rely on fixed rules. They perform well under normal conditions but struggle when conditions change suddenly.
-
-We wanted to build a system that does not just execute tasks — but **learns how to handle pressure, adapt to urgency, and coordinate intelligently.**
-
-That is the problem this environment was designed to solve.
+We thought we could simulate all of that. We were wrong about how
+hard it would be. And that's exactly what made this interesting.
 
 ---
 
-# Designing a Warehouse That Behaves Like the Real World
+## The Problem Isn't Movement. It's Judgment.
 
-To simulate real logistics behavior, we designed a multi-agent warehouse environment where multiple robots operate together.
+When we started building this, we made the classic mistake — we
+focused on getting robots to move. BFS pathfinding, obstacle grids,
+collision detection. That all came together quickly.
 
-Each robot is responsible for:
+But then we ran the simulation and watched something frustrating 
+happen.
 
-* Navigating the warehouse grid
-* Picking up assigned items
-* Delivering them to drop locations
-* Managing battery usage
-* Avoiding obstacles and other robots
+The robots were moving perfectly. And still failing.
 
-Unlike static simulations, this system continuously evolves.
+A HIGH priority task would expire while a robot was busy finishing
+a LOW priority one nearby. Two robots would race toward the same
+pickup point. One would run out of battery three steps from the
+charging station.
 
-Tasks appear dynamically. Deadlines decrease over time. Priorities shift based on urgency.
+The movement was fine. The judgment was broken.
 
-This makes the environment unpredictable — just like a real warehouse.
-
----
-
-# System Architecture — How the Intelligence is Structured
-
-To build a robust and scalable learning environment, we followed a modular system architecture. This ensures that the user interface, backend logic, and reinforcement learning components can work together seamlessly.
-
-![Multi-Agent Warehouse System Architecture](images/architecture_diagram.png)
-
-The system is divided into several key modules:
-1. **User Interface (Streamlit)**: Provides real-time visualization and control.
-2. **Backend API (FastAPI)**: Manages simulation steps and environment state.
-3. **Environment Logic**: Handles physics, collisions, and task management.
-4. **Agent Intelligence**: Core decision-making logic where RL strategies are evaluated.
-5. **Reward System**: Calculates feedback based on task success and operational efficiency.
+That's when we understood the real problem: this isn't a navigation
+challenge. It's a decision-making under pressure challenge. And that
+required a completely different solution.
 
 ---
 
-# Introducing Task Priorities — Handling Urgency
+## Building the Environment
 
-Not all deliveries are equal.
+We designed a 5×5 warehouse grid — deliberately compact, because
+tight spaces force harder decisions. Every cell matters. Every step
+has a cost.
 
-Some shipments are routine. Others are urgent.
+The environment has:
+- 2 autonomous robots operating simultaneously
+- Tasks with HIGH / NORMAL / LOW priorities
+- Real-time deadline countdowns that penalize failure hard (-25)
+- Charging stations robots must find before battery hits zero
+- Static obstacles representing warehouse shelves
+- Emergency task injection — sudden urgent deliveries mid-simulation
+- Peak load simulation — stress testing under festival-level demand
 
-To simulate this, every task was assigned a **priority level**:
+The reward signal was designed to punish bad judgment, not just
+bad movement:
 
-* HIGH — urgent deliveries
-* NORMAL — standard operations
-* LOW — non-critical tasks
+| Event | Reward |
+|---|---|
+| All tasks complete | +150 |
+| Task delivered | +60 |
+| Item picked up | +15 |
+| Recharged / HIGH priority bonus | +10 |
+| Deadline missed | -25 |
+| Collision | -20 |
+| Obstacle hit | -10 |
+| Movement cost | -1 |
 
-Robots must decide:
-
-Should they finish their current task or switch to an urgent one?
-
-This introduces a trade-off between efficiency and urgency — a critical decision-making challenge in logistics systems.
-
----
-
-# Adding Deadlines — Creating Real Pressure
-
-Deadlines transformed the warehouse into a time-sensitive system.
-
-Every task has a countdown timer.
-
-With each simulation step:
-
-Deadlines decrease.
-
-If a robot fails to deliver before the deadline expires:
-
-The task is marked as expired.
-
-A penalty is applied.
-
-This creates a realistic pressure environment where robots must act quickly and intelligently.
-
-Instead of blindly moving, they must prioritize correctly.
+This created an environment where a "smart" rule-based robot could
+still fail — because rules don't handle pressure. Learning does.
 
 ---
 
-# Emergency Recovery — Responding to Critical Situations
+## The PyTorch Brain
 
-In real-world operations, emergencies happen.
+We replaced our initial heuristic logic with a proper Deep Q-Network
+built in PyTorch.
 
-A sudden urgent delivery can disrupt normal workflow.
+3-layer MLP. Input: [pending tasks, max priority level, min deadline
+remaining]. Output: which strategy the fleet should run —
+Priority-First, Nearest-First, or Deadline-First.
 
-To simulate this, we introduced **Emergency Recovery Mode**.
+Adam optimizer. MSE loss. Experience replay buffer. Epsilon-greedy
+exploration. Trained across 150 episodes using HuggingFace TRL
+for experiment configuration and tracking.
 
-Whenever a task reaches a critical deadline threshold:
+The key insight was treating strategy selection as the RL problem,
+not low-level movement. The DQN acts as a high-level commander —
+it reads the warehouse state and decides the operational mode.
+BFS handles the actual navigation underneath.
 
-* The system flags the task as CRITICAL
-* Robots override normal strategy selection
-* Immediate rerouting occurs
-* A reward bonus is given for saving urgent tasks
+This two-level architecture (neural commander + deterministic
+pathfinder) is actually how real warehouse systems like Amazon
+Robotics think about the problem.
 
-This models real-world reactive behavior where urgent deliveries must be handled immediately.
-
----
-
-# Peak Load Simulation — Stress Testing the System
-
-Warehouses experience extreme demand during peak hours.
-
-Examples include:
-
-* Festival sales
-* Black Friday events
-* High-volume delivery days
-
-To simulate this pressure, we implemented **Peak Load Simulation**.
-
-When activated:
-
-Multiple tasks are injected simultaneously.
-
-Deadlines become tighter.
-
-Robots must reorganize rapidly.
-
-This tests how well the system performs under stress conditions.
-
-It reveals whether the system collapses under load — or adapts successfully.
+The trained weights are saved as model.pth and loaded at runtime
+— the dashboard shows "PYTORCH NEURAL POLICY ENGINE: ACTIVE"
+every time the DQN is driving decisions.
 
 ---
 
-# Teaching the System to Learn — Reinforcement Learning
+## What the Training Showed
 
-Handling pressure requires learning from experience.
+The results were cleaner than we expected.
 
-To achieve this, we integrated **Reinforcement Learning** into the system.
+Random baseline agent: ~400 average reward per episode.
+PyTorch DQN after 150 episodes: ~950 average reward.
 
-Instead of using fixed decision rules, the system evaluates multiple strategies such as:
+That's a +137% improvement — and the curve tells a story. Early
+episodes are chaotic. The agent tries random strategies, fails,
+gets penalized. Around episode 40-50, it starts learning that
+deadline pressure beats proximity. By episode 100, it consistently
+switches to Deadline-First mode under stress.
 
-* Selecting highest-priority tasks first
-* Selecting nearest tasks first
-* Selecting tasks with earliest deadlines first
-
-Each decision generates feedback.
-
-Successful decisions increase rewards.
-
-Failed decisions reduce rewards.
-
-Over multiple episodes, the system builds a memory of which strategies work best under different conditions.
-
-This allows the system to improve continuously.
-
-It does not just execute tasks — it learns how to execute them better.
+Final evaluation scores: 0.97 across Easy, Medium, and Hard
+difficulty. The agent doesn't just perform well on easy cases —
+it maintains performance when deadlines tighten and tasks pile up.
 
 ---
 
-# Multi-Agent Coordination — Making Robots Work Together
+## Making It Observable — The Reward Feed
 
-Real warehouses use fleets of robots, not single units.
+One thing we wanted judges and users to actually see was the
+reward signal in real time — not just as a number, but as a
+live feed of every decision the agent makes.
 
-This introduces coordination challenges.
+We built a Reward Feed into the dashboard:
 
-Robots must:
++150  All tasks complete!
++60   Task delivered
++15   Item picked up
+-25   Deadline missed
+-20   Collision
+-10   Obstacle hit
+-1    Movement
 
-* Avoid collisions
-* Prevent traffic congestion
-* Share workspace efficiently
+Every step the agent takes shows up as a colored entry — green
+for good decisions, red for penalties. You can watch the agent
+learn in real time, see when it makes mistakes, and understand
+exactly why it gets the reward it gets.
 
-To measure collaboration quality, we introduced a **Coordination Score**.
-
-This metric evaluates:
-
-* Successful deliveries
-* Collision avoidance
-* Efficient task distribution
-
-Instead of measuring individual success, the system evaluates team performance.
-
-This models cooperative behavior found in real logistics fleets.
-
----
-
-# Navigation Intelligence — Handling Physical Constraints
-
-Warehouses contain shelves, restricted zones, and narrow paths.
-
-To simulate this, we introduced static obstacles into the grid.
-
-Robots must navigate around these obstacles.
-
-If a path is blocked:
-
-The robot recalculates an alternate route.
-
-This introduces spatial reasoning challenges and improves navigation realism.
+![Dashboard Preview](images/dashboard_preview.png)
+*Live reward feed showing agent decisions in real time*
 
 ---
 
-# Visualizing Performance — Making Intelligence Observable
+## Peak Load — Stress Testing the System
 
-One of the most important aspects of intelligent systems is visibility.
+![Peak Load Grid](images/performance_metrics.png)
+*Tactical Operations Grid under festival-level peak demand*
 
-![Elite Warehouse Dashboard Preview](images/dashboard_preview.png)
-![Fulfillment Matrix and Performance Metrics](images/performance_metrics.png)
+Warehouses don't fail during normal hours. They fail during
+Black Friday. Festival sales. Flash delivery days.
 
-Users must understand what the system is doing.
+We built Peak Load Simulation to stress test exactly this — 
+injecting 5–8 urgent tasks simultaneously with tight deadlines.
+The grid fills up. Robots must reorganize instantly.
 
-To achieve this, we developed an interactive dashboard that displays:
-
-* Robot positions in real time
-* Active tasks and deadlines
-* Strategy selection patterns
-* System reward trends
-* Multi-agent coordination metrics
-
-These visual components allow users to observe learning behavior directly.
-
-Instead of guessing, they can see how decisions evolve over time.
+This is where the DQN's strategy switching shows its value:
+under peak load, it consistently shifts to Deadline-First mode
+and saves tasks that a rule-based system would miss.
 
 ---
 
-# Final System Behavior — A Warehouse That Adapts
+## System Architecture
 
-After combining all components, the system behaves like an intelligent logistics network.
+![Architecture Diagram](images/architecture_diagram.png)
 
-It can:
-
-* Handle urgent deliveries
-* Adapt to deadline pressure
-* Respond to emergency tasks
-* Survive peak workload conditions
-* Coordinate multiple robots
-* Improve performance through learning
-
-This transforms the warehouse from a static simulator into a dynamic decision-making environment.
+The full stack:
+- Streamlit dashboard with live reward feed and robot telemetry
+- FastAPI backend managing all simulation state
+- PyTorch DQN neural policy engine (model.pth)
+- HuggingFace TRL for training configuration
+- Docker containerized deployment
+- HuggingFace Spaces for live hosting
 
 ---
 
-# Real-World Impact
+## What We Learned
 
-The problems addressed in this system are directly relevant to modern logistics operations.
+The hardest part wasn't the code. It was designing a reward
+function that couldn't be gamed.
 
-Industries such as:
+Early versions produced agents that hovered near charging stations
+for easy recharge bonuses while ignoring deliveries. Classic
+reward hacking.
 
-* E-commerce fulfillment
-* Automated warehouses
-* Supply chain logistics
-* Delivery optimization
+We fixed it by making the completion reward (+60) dwarf everything
+else, and making deadline failures expensive enough that ignoring
+tasks was never the optimal strategy.
 
-face similar challenges daily.
-
-By simulating these conditions in a controlled environment, this system enables:
-
-* Testing intelligent decision strategies
-* Training multi-agent coordination models
-* Evaluating performance under stress
-* Improving logistics efficiency
-
-This makes the environment useful not only for simulation but also for training intelligent agents capable of handling complex real-world workflows.
+Good RL environments aren't just simulations. They're arguments —
+about what behavior you actually want, expressed in numbers.
 
 ---
 
-# Conclusion
+## Try It
 
-Warehouse systems today must operate under uncertainty, urgency, and heavy demand.
+Live Dashboard:
+https://huggingface.co/spaces/kottakur/warehouse-priority-env
 
-Simple rule-based logic is no longer sufficient.
+Training Notebook (HuggingFace TRL + PyTorch DQN):
+https://colab.research.google.com/drive/1yAKAoVT_yDQAVVhbNvQhS7oqloQkm9nI#scrollTo=V7SB1zRTgyY7
 
-What is needed are systems that:
+GitHub:
+https://github.com/Narendra02053/meta_hack
 
-Learn from experience.
-
-Adapt to change.
-
-Coordinate intelligently.
-
-This project demonstrates how a multi-agent warehouse environment can evolve into a learning system capable of handling dynamic workloads.
-
-Not by following rigid instructions — but by learning from every episode.
-
-And that is the core idea behind intelligent automation.
+Built for the Meta × PyTorch × HuggingFace OpenEnv Hackathon.
+By Narendra — AMC Engineering College, Bengaluru.
