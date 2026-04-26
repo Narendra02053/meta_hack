@@ -234,7 +234,7 @@ Live Dashboard:
 https://huggingface.co/spaces/kottakur/warehouse-priority-env
 
 Training Notebook (PyTorch DQN + HuggingFace TRL):
-https://colab.research.google.com/drive/1yAKAoVT_yDQAVVhbNvQhS7oqloQkm9nI#scrollTo=V7SB1zRTgyY7
+https://colab.research.google.com/drive/1yAKAoVT_yDQAVVhbNvQhS7oqloQkm9nI#scrollTo=oB1JUzXufsB3
 
 GitHub:
 https://github.com/Narendra02053/meta_hack
